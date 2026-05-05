@@ -1,0 +1,6 @@
+datasets
+huggingface_hub
+numpy
+opencv-python
+pillow
+torch

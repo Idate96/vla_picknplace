@@ -1,0 +1,14 @@
+--dataset.repo_id=carmensc/record-test-screwdriver
+--dataset.revision=main
+--dataset.video_backend=torchcodec
+--policy.type=act
+--policy.device=cuda
+--policy.push_to_hub=false
+--wandb.enable=false
+--output_dir=outputs/train/act_screwdriver_full
+--job_name=act_screwdriver_full
+--steps=100000
+--save_freq=20000
+--log_freq=500
+--num_workers=4
+--batch_size=8

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments and secrets
+.venv/
+venv/
+.env
+.env.*
+
+# Dataset and Hugging Face caches
+data/
+hf_cache/
+hf_meta/
+.cache/
+**/.cache/
+*.arrow
+*.parquet
+
+# Training and generated outputs
+outputs/
+logs/
+runs/
+wandb/
+checkpoints/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+
+# Generated visualization/media artifacts
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.rrd
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
