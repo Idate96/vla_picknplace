@@ -5,6 +5,7 @@ This public repo should contain only code, docs, and small configuration files.
 ## Include
 
 - `act/` training and sanity-check scripts.
+- `cluster/` scheduler wrappers that call the training scripts.
 - `data_processing/` dataset inspection and visualization utilities.
 - `README.md`, `requirements.txt`, and collaborator notes.
 - Small shell or Slurm templates after paths are parameterized.

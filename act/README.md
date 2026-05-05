@@ -38,6 +38,12 @@ VIDEO_BACKEND=torchcodec
 
 Any extra CLI arguments are forwarded to `lerobot-train`.
 
+Cluster launchers live outside this folder. For Euler:
+
+```bash
+sbatch cluster/euler/train_act.sbatch
+```
+
 For exact raw CLI examples, see:
 
 ```text

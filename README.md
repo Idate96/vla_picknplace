@@ -12,6 +12,7 @@ carmensc/record-test-screwdriver
 
 ```text
 act/              ACT training and dataset sanity checks
+cluster/euler/    Euler Slurm launchers
 data_processing/ LeRobot dataset visualization and inspection utilities
 docs/             Push-scope and collaboration notes
 ```
@@ -71,4 +72,10 @@ For a five-step smoke run:
 
 ```bash
 STEPS=5 SAVE_FREQ=5 LOG_FREQ=1 NUM_WORKERS=2 BATCH_SIZE=2 OUTPUT_DIR=outputs/train/act_screwdriver_smoke ./act/train_act.sh
+```
+
+## Euler
+
+```bash
+sbatch cluster/euler/train_act.sbatch
 ```
