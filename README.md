@@ -15,6 +15,7 @@ act/              ACT training and dataset sanity checks
 cluster/euler/    Euler Slurm launchers
 data_processing/ LeRobot dataset visualization and inspection utilities
 docs/             Push-scope and collaboration notes
+experiments/      Isolated short-lived experiments and runbooks
 ```
 
 ## Setup
@@ -79,3 +80,9 @@ STEPS=5 SAVE_FREQ=5 LOG_FREQ=1 NUM_WORKERS=2 BATCH_SIZE=2 OUTPUT_DIR=outputs/tra
 ```bash
 sbatch cluster/euler/train_act.sbatch
 ```
+
+## Experiments
+
+Short-lived decision experiments live under `experiments/` so they do not look
+like the main training path. The current sim-only camera placement ablation is
+documented in `experiments/camera_placement/`.
