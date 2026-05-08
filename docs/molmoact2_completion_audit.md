@@ -88,6 +88,17 @@ Summary command:
 It reports `Brev launch: NO`, names `upstream fine-tune code`, and exits 1 in
 strict mode.
 
+The same summary helper also handles the machine-readable manifest:
+
+```bash
+.venv/bin/python molmoact2/summarize_readiness.py \
+  molmoact2/brev_finetune_manifest.json \
+  --strict-exit-code
+```
+
+It reports both manifest blockers: the old Carmen diagnostic dataset range issue
+and the inference-only upstream MolmoAct2 wrapper.
+
 ## Current Blockers
 
 ```text

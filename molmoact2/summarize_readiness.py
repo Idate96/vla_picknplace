@@ -15,6 +15,8 @@ NEXT_ACTIONS = {
     "image frames": "Fix the front RGB video path/codec/camera; the model needs loadable nonblank observation.images.front frames.",
     "brev": "Use the mw-newton-dev SSH alias or repair it with Brev CLI only if SSH is stale.",
     "upstream fine-tune code": "Wait for Ai2 trainable MolmoAct2 code or approve a public local recipe before launching Brev training.",
+    "upstream MolmoAct2 LeRobot wrapper is inference-only": "Wait for Ai2 trainable MolmoAct2 code or approve a public local recipe before launching Brev training.",
+    "old Carmen diagnostic dataset has joint range/calibration mismatches": "Recollect the Carmen dataset or prove a calibrated offline conversion before fine-tuning.",
 }
 
 
@@ -41,6 +43,12 @@ def load_report(path: Path) -> dict[str, Any]:
 
 def normalized_blockers(report: dict[str, Any]) -> list[dict[str, str]]:
     blockers = report.get("blockers", [])
+    if not blockers and isinstance(report.get("blocked_reasons"), list):
+        blockers = report["blocked_reasons"]
+    if not blockers and isinstance(report.get("diagnostic_readiness"), dict):
+        diagnostic_blockers = report["diagnostic_readiness"].get("blockers", [])
+        if isinstance(diagnostic_blockers, list):
+            blockers = diagnostic_blockers
     if not isinstance(blockers, list):
         return [{"name": "report", "detail": "blockers field is not a list"}]
 
@@ -50,8 +58,8 @@ def normalized_blockers(report: dict[str, Any]) -> list[dict[str, str]]:
             name = str(item.get("name", "unknown"))
             detail = str(item.get("detail", "")).strip()
         else:
-            name = "unknown"
-            detail = str(item)
+            name = str(item)
+            detail = ""
         normalized.append({"name": name, "detail": detail})
     return normalized
 
@@ -77,11 +85,19 @@ def next_action(name: str) -> str:
     return NEXT_ACTIONS.get(name, "Inspect the blocker detail and update the MolmoAct2 handoff docs if this is a new failure mode.")
 
 
+def infer_ready(report: dict[str, Any], blockers: list[dict[str, str]]) -> bool:
+    if "ready" in report:
+        return bool(report["ready"]) and not blockers
+    if "status" in report:
+        return str(report["status"]).lower() == "ready" and not blockers
+    return not blockers
+
+
 def main() -> None:
     args = parse_args()
     report = load_report(args.report)
     blockers = normalized_blockers(report)
-    ready = bool(report.get("ready")) and not blockers
+    ready = infer_ready(report, blockers)
     status = "READY" if ready else "BLOCKED"
 
     print(f"Report: {args.report}")
@@ -91,7 +107,10 @@ def main() -> None:
     if blockers:
         print("\nBlockers:")
         for blocker in blockers:
-            print(f"- {blocker['name']}: {blocker['detail']}")
+            if blocker["detail"]:
+                print(f"- {blocker['name']}: {blocker['detail']}")
+            else:
+                print(f"- {blocker['name']}")
             print(f"  next: {next_action(blocker['name'])}")
     else:
         print("\nNo blockers reported. Re-check the exact train command before launching a real Brev job.")

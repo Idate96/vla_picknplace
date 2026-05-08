@@ -491,6 +491,7 @@ def check_joint_control_smoke() -> Check:
 def check_readiness_summary_smoke() -> Check:
     with tempfile.TemporaryDirectory() as tmp:
         report_path = Path(tmp) / "readiness.json"
+        manifest_path = Path(tmp) / "manifest.json"
         report_path.write_text(
             json.dumps(
                 {
@@ -514,7 +515,24 @@ def check_readiness_summary_smoke() -> Check:
                 }
             )
         )
-        proc = subprocess.run(
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "status": "blocked",
+                    "blocked_reasons": [
+                        "old Carmen diagnostic dataset has joint range/calibration mismatches",
+                        "upstream MolmoAct2 LeRobot wrapper is inference-only",
+                    ],
+                    "diagnostic_readiness": {
+                        "blockers": [
+                            "dataset ranges",
+                            "upstream fine-tune code",
+                        ],
+                    },
+                }
+            )
+        )
+        readiness_proc = subprocess.run(
             [
                 sys.executable,
                 "molmoact2/summarize_readiness.py",
@@ -526,20 +544,37 @@ def check_readiness_summary_smoke() -> Check:
             capture_output=True,
             check=False,
         )
-    output = proc.stdout + "\n" + proc.stderr
+        manifest_proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/summarize_readiness.py",
+                str(manifest_path),
+                "--strict-exit-code",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    output = readiness_proc.stdout + "\n" + readiness_proc.stderr
+    manifest_output = manifest_proc.stdout + "\n" + manifest_proc.stderr
     ok = (
-        proc.returncode == 1
+        readiness_proc.returncode == 1
         and "Status: BLOCKED" in output
         and "Brev launch: NO" in output
         and "Recollect or prove a calibrated offline conversion" in output
         and "Wait for Ai2 trainable MolmoAct2 code" in output
+        and manifest_proc.returncode == 1
+        and "old Carmen diagnostic dataset has joint range/calibration mismatches" in manifest_output
+        and "upstream MolmoAct2 LeRobot wrapper is inference-only" in manifest_output
+        and "Brev launch: NO" in manifest_output
     )
     return Check(
         "readiness summary smoke",
         ok,
-        "summarizes blockers into a no-launch decision with next actions"
+        "summarizes readiness and manifest blockers into a no-launch decision with next actions"
         if ok
-        else f"unexpected output: {output[-500:]}",
+        else f"unexpected output: {(output + manifest_output)[-500:]}",
     )
 
 

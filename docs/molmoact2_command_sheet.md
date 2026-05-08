@@ -40,6 +40,10 @@ Machine-readable readiness:
 .venv/bin/python molmoact2/summarize_readiness.py \
   outputs/molmoact2/readiness.json \
   --strict-exit-code
+
+.venv/bin/python molmoact2/summarize_readiness.py \
+  molmoact2/brev_finetune_manifest.json \
+  --strict-exit-code
 ```
 
 Collection preflight after a pilot recording:
