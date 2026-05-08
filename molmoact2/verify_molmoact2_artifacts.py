@@ -273,6 +273,36 @@ def check_brev_video_decode_setup() -> Check:
     )
 
 
+def check_artificial_act_decision() -> Check:
+    path = ROOT / "docs/molmoact2_artificial_dataset_compatibility.md"
+    if not path.exists():
+        return Check("artificial ACT compatibility decision", False, "missing compatibility doc")
+    text = path.read_text()
+    required = [
+        "Do not use it as the MolmoAct2 fine-tuning or rollout dataset.",
+        "two camera positions",
+        "10 Hz",
+        "4D end-effector state",
+        "4D end-effector delta action",
+        "one fixed front RGB camera",
+        "30 Hz",
+        "6D joint state",
+        "6D absolute joint target action",
+        "Safe uses:",
+        "Unsafe uses:",
+        "not a simple camera remap",
+        "No HW3 simulator scripts are required or expected.",
+    ]
+    missing = [item for item in required if item not in text]
+    return Check(
+        "artificial ACT compatibility decision",
+        not missing,
+        "old two-camera ACT sim data is documented as historical only, not a MolmoAct2 fine-tune/control dataset"
+        if not missing
+        else f"missing {missing}",
+    )
+
+
 def check_no_external_course_paths() -> Check:
     proc = subprocess.run(
         ["git", "ls-files"],
@@ -630,6 +660,7 @@ def main() -> None:
     checks.append(check_manifest_upstream_refs_current())
     checks.append(check_brev_env_template())
     checks.append(check_brev_video_decode_setup())
+    checks.append(check_artificial_act_decision())
     checks.append(check_no_external_course_paths())
     for rel in [
         "cluster/brev/README.md",
