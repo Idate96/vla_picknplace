@@ -82,6 +82,9 @@ def check_brev_manifest() -> Check:
     commands = data.get("commands", {})
     upstream = data.get("upstream", {})
     diagnostic = data.get("diagnostic_readiness", {})
+    artificial = data.get("artificial_act_dataset", {})
+    old_artificial_schema = artificial.get("old_schema", {})
+    required_artificial_schema = artificial.get("required_molmoact2_schema", {})
     ok = (
         data.get("status") == "blocked"
         and data.get("last_checked") == "2026-05-08"
@@ -103,6 +106,19 @@ def check_brev_manifest() -> Check:
         and diagnostic.get("dataset_repo_id") == "carmensc/record-test-screwdriver"
         and diagnostic.get("ready") is False
         and diagnostic.get("blockers") == ["dataset ranges", "upstream fine-tune code"]
+        and artificial.get("status") == "not_usable_for_molmoact2_finetuning_or_rollout"
+        and artificial.get("decision_doc") == "docs/molmoact2_artificial_dataset_compatibility.md"
+        and "loader/model diagnostics" in artificial.get("safe_use", "")
+        and old_artificial_schema.get("camera_views") == "two camera positions"
+        and old_artificial_schema.get("fps") == 10
+        and old_artificial_schema.get("state") == "4D end-effector state"
+        and old_artificial_schema.get("action") == "4D end-effector delta action"
+        and required_artificial_schema.get("image_key") == "observation.images.front"
+        and required_artificial_schema.get("camera") == "one fixed front RGB camera"
+        and required_artificial_schema.get("fps") == 30
+        and required_artificial_schema.get("state") == "6D calibrated current joint state"
+        and required_artificial_schema.get("action") == "6D absolute calibrated joint target"
+        and "recomputed statistics" in artificial.get("conversion_rule", "")
         and "cluster/brev/setup_brev_env.sh" in commands.get("setup_brev", "")
         and "cluster/brev/submit_finetune_brev.sh" in commands.get("launch_when_unblocked", "")
         and "--readiness-report" in commands.get("launch_when_unblocked", "")
@@ -114,7 +130,7 @@ def check_brev_manifest() -> Check:
     return Check(
         str(path),
         ok,
-        "machine-readable blocked Brev fine-tune handoff"
+        "machine-readable blocked Brev fine-tune handoff and artificial ACT dataset decision"
         if ok
         else "missing required model/dataset/Brev command fields",
     )

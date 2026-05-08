@@ -43,6 +43,25 @@
     "collection_guide": "docs/so100_vla_data_collection_guide.md",
     "status": "must be recollected before serious fine-tuning"
   },
+  "artificial_act_dataset": {
+    "status": "not_usable_for_molmoact2_finetuning_or_rollout",
+    "decision_doc": "docs/molmoact2_artificial_dataset_compatibility.md",
+    "safe_use": "historical ACT camera-ablation comparison or tiny LeRobot-shaped loader/model diagnostics only",
+    "old_schema": {
+      "camera_views": "two camera positions",
+      "fps": 10,
+      "state": "4D end-effector state",
+      "action": "4D end-effector delta action"
+    },
+    "required_molmoact2_schema": {
+      "image_key": "observation.images.front",
+      "camera": "one fixed front RGB camera",
+      "fps": 30,
+      "state": "6D calibrated current joint state",
+      "action": "6D absolute calibrated joint target"
+    },
+    "conversion_rule": "only acceptable if converted into a new LeRobot SO100/SO101 dataset with 30 Hz frames, calibrated 6D joint state/action, and recomputed statistics"
+  },
   "diagnostic_readiness": {
     "dataset_repo_id": "carmensc/record-test-screwdriver",
     "report_path": "outputs/molmoact2/test_brev_submit_readiness.json",
