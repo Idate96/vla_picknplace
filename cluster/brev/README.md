@@ -2,34 +2,33 @@
 
 This is the Newton-style Brev workflow port for `vla_picknplace`.
 
-It uses Brev only for authentication and SSH metadata. Code setup and training
-launch use direct SSH/rsync:
+The normal path reuses the existing Newton SSH alias, `mw-newton-dev`. Code
+setup and training launch use direct SSH/rsync:
 
 ```text
-brev login / brev refresh / brev ls --all
-ssh <instance> ...
+ssh mw-newton-dev ...
 rsync local repo -> Brev VM
 remote uv venv + pip install
 nohup remote train command
 ```
 
-## Login
+## SSH Alias
+
+```bash
+ssh mw-newton-dev "hostname && nvidia-smi -L"
+```
+
+No separate Brev CLI login is needed when that command works. Use Brev CLI only
+to repair a missing or stale SSH alias:
 
 ```bash
 brev login --auth nvidia --skip-browser
 brev refresh
 brev ls --all
-ssh <instance-name> "hostname && nvidia-smi -L"
 ```
 
-If you have a token:
-
-```bash
-export BREV_TOKEN='<token>'
-brev login --auth nvidia --token "$BREV_TOKEN"
-brev refresh
-brev ls --all
-```
+If you have a token, `brev login --auth nvidia --token "$BREV_TOKEN"` is the
+noninteractive repair path.
 
 ## Configure
 

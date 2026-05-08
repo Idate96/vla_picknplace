@@ -127,4 +127,6 @@ cluster/brev/submit_finetune_brev.sh \
 ```
 
 The submit script runs the readiness gate before launching. It should not run a
-real fine-tune until Brev auth works and a trainable MolmoAct2 recipe exists.
+real fine-tune until `ssh mw-newton-dev` works and a trainable MolmoAct2 recipe
+exists. A separate Brev CLI login is only needed if the SSH alias is missing or
+stale.
