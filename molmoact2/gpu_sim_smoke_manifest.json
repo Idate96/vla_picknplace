@@ -1,0 +1,48 @@
+{
+  "last_checked": "2026-05-08",
+  "status": "smoke_verified",
+  "note": "Local RTX 4090 evidence for MolmoAct2 inference and closed-loop MuJoCo control smoke. Outputs are ignored and not synced to Brev.",
+  "one_frame_inference": {
+    "path": "outputs/molmoact2/carmen_current_one_frame_inference.json",
+    "model": "allenai/MolmoAct2-SO100_101",
+    "dataset_repo_id": "carmensc/record-test-screwdriver",
+    "camera_key": "observation.images.front",
+    "run_model": true,
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "actions_shape": [1, 30, 6],
+    "state_warning_joints": [
+      "shoulder_lift",
+      "elbow_flex",
+      "wrist_roll"
+    ]
+  },
+  "closed_loop_schema_check": {
+    "path": "outputs/molmoact2/closed_loop_molmo_schema_check.json",
+    "frames_dir": "outputs/molmoact2/closed_loop_molmo_schema_check_frames",
+    "dry_run": false,
+    "model_loaded": true,
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "rollout_steps": 1,
+    "actions_per_inference": 1,
+    "horizon_source": "molmoact2_predict_action",
+    "horizon_shape": [30, 6],
+    "min_image_std": 75.0,
+    "clipped_control_count": 0
+  },
+  "closed_loop_three_step": {
+    "path": "outputs/molmoact2/closed_loop_molmo_three_step.json",
+    "frames_dir": "outputs/molmoact2/closed_loop_molmo_three_step_frames",
+    "dry_run": false,
+    "device": "cuda",
+    "dtype": "bfloat16",
+    "rollout_steps": 3,
+    "actions_per_inference": 2,
+    "record_count": 3,
+    "horizon_shape": [30, 6],
+    "executed_targets_per_record": 2,
+    "clipped_control_count": 0,
+    "frame_count": 4
+  }
+}

@@ -138,6 +138,95 @@ def check_brev_manifest() -> Check:
     )
 
 
+def check_gpu_sim_smoke_manifest() -> Check:
+    path = ROOT / "molmoact2/gpu_sim_smoke_manifest.json"
+    if not path.exists():
+        return Check(str(path), False, "missing")
+    try:
+        data = load_json(path)
+    except Exception as exc:
+        return Check(str(path), False, f"invalid json: {exc}")
+
+    inference = data.get("one_frame_inference", {})
+    schema = data.get("closed_loop_schema_check", {})
+    three_step = data.get("closed_loop_three_step", {})
+    ok = (
+        data.get("last_checked") == "2026-05-08"
+        and data.get("status") == "smoke_verified"
+        and inference.get("model") == "allenai/MolmoAct2-SO100_101"
+        and inference.get("dataset_repo_id") == "carmensc/record-test-screwdriver"
+        and inference.get("camera_key") == "observation.images.front"
+        and inference.get("run_model") is True
+        and inference.get("device") == "cuda"
+        and inference.get("dtype") == "bfloat16"
+        and inference.get("actions_shape") == [1, 30, 6]
+        and schema.get("dry_run") is False
+        and schema.get("model_loaded") is True
+        and schema.get("horizon_source") == "molmoact2_predict_action"
+        and schema.get("horizon_shape") == [30, 6]
+        and schema.get("clipped_control_count") == 0
+        and three_step.get("dry_run") is False
+        and three_step.get("rollout_steps") == 3
+        and three_step.get("actions_per_inference") == 2
+        and three_step.get("record_count") == 3
+        and three_step.get("horizon_shape") == [30, 6]
+        and three_step.get("executed_targets_per_record") == 2
+        and three_step.get("clipped_control_count") == 0
+        and three_step.get("frame_count") == 4
+    )
+    if not ok:
+        return Check(str(path), False, "missing required GPU inference or closed-loop smoke summary fields")
+
+    missing_local_outputs = []
+    local_checks: list[str] = []
+    for section in (inference, schema, three_step):
+        out_path = ROOT / section.get("path", "")
+        if not out_path.exists():
+            missing_local_outputs.append(str(out_path.relative_to(ROOT)))
+
+    if not missing_local_outputs:
+        try:
+            inference_out = load_json(ROOT / inference["path"])
+            schema_out = load_json(ROOT / schema["path"])
+            three_step_out = load_json(ROOT / three_step["path"])
+        except Exception as exc:
+            return Check(str(path), False, f"could not load local smoke output: {exc}")
+
+        local_ok = (
+            inference_out.get("run_model") is True
+            and inference_out.get("actions_shape") == [1, 30, 6]
+            and schema_out.get("dry_run") is False
+            and schema_out.get("model_loaded") is True
+            and schema_out.get("records", [{}])[0].get("horizon_source") == "molmoact2_predict_action"
+            and schema_out.get("records", [{}])[0].get("horizon_shape") == [30, 6]
+            and schema_out.get("records", [{}])[0].get("image_stats", {}).get("std", 0) >= schema.get("min_image_std", 0)
+            and schema_out.get("clipped_control_count") == 0
+            and three_step_out.get("dry_run") is False
+            and three_step_out.get("rollout_steps") == 3
+            and len(three_step_out.get("records", [])) == 3
+            and all(record.get("horizon_shape") == [30, 6] for record in three_step_out.get("records", []))
+            and all(len(record.get("executed_targets", [])) == 2 for record in three_step_out.get("records", []))
+            and three_step_out.get("clipped_control_count") == 0
+        )
+        if not local_ok:
+            return Check(str(path), False, "local GPU/sim smoke outputs do not match tracked manifest")
+        local_checks.append("local ignored outputs match")
+
+    frames_dir = ROOT / three_step.get("frames_dir", "")
+    if frames_dir.exists():
+        frame_count = len(sorted(frames_dir.glob("*.jpg")))
+        if frame_count != three_step.get("frame_count"):
+            return Check(str(path), False, f"unexpected three-step frame count: {frame_count}")
+        local_checks.append("frame count matches")
+
+    detail = "tracked GPU inference and closed-loop sim smoke evidence"
+    if local_checks:
+        detail += "; " + "; ".join(local_checks)
+    else:
+        detail += "; ignored output files absent, manifest-only check"
+    return Check(str(path), True, detail)
+
+
 def git_ls_remote(repo: str, ref: str) -> str | None:
     try:
         proc = subprocess.run(
@@ -814,6 +903,7 @@ def main() -> None:
         ROOT / "cluster/brev/submit_finetune_brev.sh",
     ]
     checks.append(check_brev_manifest())
+    checks.append(check_gpu_sim_smoke_manifest())
     checks.append(check_manifest_upstream_refs_current())
     checks.append(check_brev_env_template())
     checks.append(check_brev_video_decode_setup())

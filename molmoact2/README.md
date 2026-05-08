@@ -77,6 +77,10 @@ Only run model inference on a GPU machine with enough memory:
 Treat returned actions as offline diagnostics until calibration and action
 limits are checked.
 
+The tracked `molmoact2/gpu_sim_smoke_manifest.json` records the current local
+GPU inference and closed-loop sim smoke evidence. The referenced raw outputs
+stay under ignored `outputs/`.
+
 Run the repo-local command-path sim smoke on that output:
 
 ```bash
