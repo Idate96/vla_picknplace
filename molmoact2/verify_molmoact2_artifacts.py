@@ -655,12 +655,57 @@ def check_blocked_brev_dry_run_guard() -> Check:
         or "does not sync, SSH launch, or start" not in doc_text
     ):
         missing.append("runbook diagnostic dry-run note")
+    if missing:
+        return Check("blocked Brev dry-run guard", False, f"missing {missing}")
+
+    env_file = ROOT / "cluster/brev/.env.brev"
+    if not env_file.exists():
+        return Check(
+            "blocked Brev dry-run guard",
+            True,
+            "dry-run-only bypass is documented, writes readiness JSON, and cannot launch remotely",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "blocked_brev_readiness.json"
+        proc = subprocess.run(
+            [
+                str(submit),
+                "--dataset-repo-id",
+                "carmensc/record-test-screwdriver",
+                "--dry-run",
+                "--allow-blocked-dry-run",
+                "--readiness-report",
+                str(report_path),
+                "--train-command",
+                "echo would train",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=90,
+        )
+        try:
+            report = json.loads(report_path.read_text())
+        except Exception:
+            report = {}
+    output = proc.stdout + "\n" + proc.stderr
+    ok = (
+        proc.returncode == 0
+        and report.get("ready") is False
+        and "Brev launch: NO" in output
+        and "Dry run only; readiness blocked; not syncing or launching." in output
+        and "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set." in output
+        and "Synced to Brev." not in output
+        and "Training started" not in output
+    )
     return Check(
         "blocked Brev dry-run guard",
-        not missing,
-        "dry-run-only bypass is documented, writes readiness JSON, and cannot launch remotely"
-        if not missing
-        else f"missing {missing}",
+        ok,
+        "blocked dry-run prints readiness summary and exits before sync or launch"
+        if ok
+        else f"unexpected dry-run output: {output[-800:]}",
     )
 
 
