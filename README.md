@@ -129,5 +129,6 @@ docs/molmoact2_brev_finetuning.md
 ## Experiments
 
 Short-lived decision experiments live under `experiments/` so they do not look
-like the main training path. The current sim-only camera placement ablation is
-documented in `experiments/camera_placement/`.
+like the main training path. The old sim-only camera placement ablation is now
+archived as result context in `experiments/camera_placement/`; it is not an
+operational dependency for MolmoAct2 or current ACT collection.

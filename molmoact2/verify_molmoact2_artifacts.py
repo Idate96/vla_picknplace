@@ -185,10 +185,12 @@ def check_no_external_course_paths() -> Check:
     if proc.returncode == 0:
         paths = [ROOT / line for line in proc.stdout.splitlines()]
     else:
-        scan_roots = [ROOT / "README.md", ROOT / "docs", ROOT / "molmoact2", ROOT / "cluster"]
-        paths = []
-        for scan_root in scan_roots:
-            paths.extend([scan_root] if scan_root.is_file() else sorted(scan_root.rglob("*")))
+        skip_dirs = {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", "outputs"}
+        paths = [
+            path
+            for path in ROOT.rglob("*")
+            if not any(part in skip_dirs for part in path.relative_to(ROOT).parts)
+        ]
 
     forbidden_fragments = (
         "ethz" + "-course-2026",
@@ -206,7 +208,9 @@ def check_no_external_course_paths() -> Check:
     return Check(
         "repo-local command paths",
         not matches,
-        "no operational commands point at the old course repo" if not matches else f"old paths in {matches}",
+        "no tracked/fallback-scanned commands point at the old course repo"
+        if not matches
+        else f"old paths in {matches}",
     )
 
 
