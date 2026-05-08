@@ -95,6 +95,23 @@ This downloads the pinned public RobotStudio SO101 MuJoCo assets and steps the
 arm physics. It still does not model the screwdriver object, task contacts,
 camera feedback, or task success.
 
+Closed-loop MolmoAct2 sim smoke:
+
+```bash
+.venv/bin/python molmoact2/rollout_mujoco_so101.py \
+  --rollout-steps 1 \
+  --actions-per-inference 1 \
+  --device cuda \
+  --dtype bfloat16 \
+  --output outputs/molmoact2/closed_loop_molmo_one_step.json \
+  --frames-dir outputs/molmoact2/closed_loop_molmo_frames
+```
+
+This renders a fixed simulated front camera view with the SO101 arm, a simple
+screwdriver proxy, and a target area, feeds that image plus current joint state
+to MolmoAct2, then executes the first predicted target in MuJoCo. Treat it as a
+smoke test, not as a success-rate benchmark.
+
 ## Brev
 
 Use the Newton-style direct VM workflow in `cluster/brev/`:

@@ -314,6 +314,7 @@ def main() -> None:
         ROOT / "molmoact2/test_on_lerobot_frame.py",
         ROOT / "molmoact2/simulate_joint_control.py",
         ROOT / "molmoact2/simulate_mujoco_so101.py",
+        ROOT / "molmoact2/rollout_mujoco_so101.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
     ]

@@ -81,6 +81,22 @@ targets. It is not a physics/contact/task-success simulator.
 This uses the public RobotStudio SO101 MuJoCo model at a pinned commit. It
 steps arm physics only; it does not simulate the screwdriver task.
 
+## Closed-Loop Sim Smoke
+
+```bash
+.venv/bin/python molmoact2/rollout_mujoco_so101.py \
+  --rollout-steps 1 \
+  --actions-per-inference 1 \
+  --device cuda \
+  --dtype bfloat16 \
+  --output outputs/molmoact2/closed_loop_molmo_one_step.json \
+  --frames-dir outputs/molmoact2/closed_loop_molmo_frames
+```
+
+This renders a fixed simulated front camera view, calls MolmoAct2 on that
+image/state, and executes the first returned target in MuJoCo. It is a
+closed-loop smoke test, not a validated success benchmark.
+
 ## Brev Access
 
 The default path reuses the Newton Brev SSH instance:

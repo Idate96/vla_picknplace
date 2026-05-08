@@ -81,6 +81,23 @@ This downloads the pinned RobotStudio SO101 MJCF/mesh assets under
 does not include a screwdriver object, camera feedback, or a task-success
 metric.
 
+Run a one-step closed-loop MolmoAct2 sim rollout:
+
+```bash
+.venv/bin/python molmoact2/rollout_mujoco_so101.py \
+  --rollout-steps 1 \
+  --actions-per-inference 1 \
+  --device cuda \
+  --dtype bfloat16 \
+  --output outputs/molmoact2/closed_loop_molmo_one_step.json \
+  --frames-dir outputs/molmoact2/closed_loop_molmo_frames
+```
+
+This renders a fixed simulated front camera view with the SO101 arm, a simple
+screwdriver proxy, and a target area, calls MolmoAct2 on that image/state, and
+executes the first returned target in MuJoCo. It is still a smoke test, not a
+validated success metric.
+
 ## Brev
 
 The canonical Brev path is under `cluster/brev/`:
