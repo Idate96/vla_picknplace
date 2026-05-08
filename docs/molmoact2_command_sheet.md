@@ -38,6 +38,14 @@ Machine-readable readiness:
   --output-json outputs/molmoact2/readiness.json
 ```
 
+Collection preflight after a pilot recording:
+
+```bash
+.venv/bin/python molmoact2/check_collection_dataset.py \
+  --dataset-repo-id <hf_user>/<dataset> \
+  --output-json outputs/molmoact2/collection_preflight.json
+```
+
 For a local LeRobot dataset mirror:
 
 ```bash

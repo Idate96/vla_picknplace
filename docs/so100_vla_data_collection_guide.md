@@ -251,6 +251,24 @@ For the first fine-tune, prefer successful demos only. If failures are recorded,
 keep them separate or explicitly label them; do not mix unlabeled failures into
 the first training set.
 
+After the pilot upload or local export, run the collection preflight:
+
+```bash
+.venv/bin/python molmoact2/check_collection_dataset.py \
+  --dataset-repo-id <hf_user>/<dataset> \
+  --output-json outputs/molmoact2/collection_preflight.json
+```
+
+For a local dataset mirror, add:
+
+```bash
+--dataset-root /path/to/local/lerobot/dataset
+```
+
+This catches the common failures before Brev: wrong camera key, wrong fps,
+wrong joint order, non-finite state/action rows, too few frames/episodes, and
+joint ranges that look incompatible with `MolmoAct2-SO100_101`.
+
 Episode definition:
 
 ```text

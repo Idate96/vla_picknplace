@@ -390,6 +390,46 @@ def check_blocked_brev_dry_run_guard() -> Check:
     )
 
 
+def check_collection_preflight_metadata_only() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "collection_preflight.json"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/check_collection_dataset.py",
+                "--dataset-repo-id",
+                "carmensc/record-test-screwdriver",
+                "--skip-ranges",
+                "--skip-frame-check",
+                "--output-json",
+                str(report_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            report = json.loads(report_path.read_text())
+        except Exception:
+            report = {}
+    output = proc.stdout + "\n" + proc.stderr
+    ok = (
+        proc.returncode == 0
+        and report.get("ready") is True
+        and report.get("image_key") == "observation.images.front"
+        and report.get("joint_order") == EXPECTED_JOINTS
+        and "Dataset passes the MolmoAct2 collection preflight." in output
+    )
+    return Check(
+        "collection dataset preflight",
+        ok,
+        "metadata-only preflight accepts a LeRobot-shaped screwdriver dataset"
+        if ok
+        else f"unexpected output: {output[-500:]}",
+    )
+
+
 def main() -> None:
     checks: list[Check] = []
     script_paths = [
@@ -400,6 +440,7 @@ def main() -> None:
         ROOT / "molmoact2/rollout_mujoco_so101.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
+        ROOT / "molmoact2/check_collection_dataset.py",
     ]
     bash_paths = [
         ROOT / "cluster/brev/sync_code_brev.sh",
@@ -436,6 +477,7 @@ def main() -> None:
             check_joint_control_smoke(),
             check_mujoco_rollout_dry_run(),
             check_blocked_brev_dry_run_guard(),
+            check_collection_preflight_metadata_only(),
         ]
     )
 
