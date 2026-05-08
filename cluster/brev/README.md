@@ -98,7 +98,9 @@ cluster/brev/submit_finetune_brev.sh \
 
 `--allow-blocked-dry-run` never launches a remote process. The readiness report
 is local JSON and records the exact blockers from
-`molmoact2/check_finetune_readiness.py`.
+`molmoact2/check_finetune_readiness.py`. When the readiness gate blocks, the
+submit script also prints `molmoact2/summarize_readiness.py` output so the
+launch/no-launch decision and next actions are visible in the terminal.
 
 ## Monitor
 

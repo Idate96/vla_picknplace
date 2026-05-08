@@ -164,6 +164,9 @@ if "${READINESS_CMD[@]}"; then
     READINESS_STATUS=0
 else
     READINESS_STATUS=$?
+    if [ -s "${READINESS_REPORT}" ]; then
+        "${PYTHON_BIN}" "${PROJECT_ROOT}/molmoact2/summarize_readiness.py" "${READINESS_REPORT}" || true
+    fi
     if [ "${DRY_RUN}" -eq 1 ] && [ "${ALLOW_BLOCKED_DRY_RUN}" -eq 1 ]; then
         echo "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set." >&2
     else

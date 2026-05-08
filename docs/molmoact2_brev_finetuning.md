@@ -177,7 +177,8 @@ cluster/brev/submit_finetune_brev.sh \
 ```
 
 Result: the script printed the `mw-newton-dev` launch plan, ran local readiness,
-wrote the local JSON readiness report, and exited before any remote launch.
+printed the readiness summary, wrote the local JSON readiness report, and exited
+before any remote launch.
 Current blockers are the old Carmen dataset range/calibration mismatch and
 upstream MolmoAct2 trainability.
 

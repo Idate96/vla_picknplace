@@ -608,6 +608,7 @@ def check_blocked_brev_dry_run_guard() -> Check:
         "ALLOW_BLOCKED_DRY_RUN",
         "READINESS_REPORT",
         "--output-json",
+        "summarize_readiness.py",
         "DRY_RUN",
         "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set.",
         "Dry run only; readiness blocked; not syncing or launching.",
