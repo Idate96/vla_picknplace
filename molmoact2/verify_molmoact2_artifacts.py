@@ -307,6 +307,78 @@ def check_joint_control_smoke() -> Check:
         )
 
 
+def check_mujoco_rollout_dry_run() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        output = tmpdir / "rollout.json"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/rollout_mujoco_so101.py",
+                "--dry-run",
+                "--rollout-steps",
+                "1",
+                "--actions-per-inference",
+                "1",
+                "--width",
+                "160",
+                "--height",
+                "120",
+                "--output",
+                str(output),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+        if proc.returncode != 0:
+            return Check("MuJoCo closed-loop dry-run smoke", False, (proc.stderr or proc.stdout)[-500:])
+        try:
+            result = json.loads(output.read_text())
+        except Exception as exc:
+            return Check("MuJoCo closed-loop dry-run smoke", False, f"invalid output json: {exc}")
+        ok = (
+            result.get("simulator", {}).get("type") == "molmoact2_closed_loop_robotstudio_so101_mujoco"
+            and result.get("dry_run") is True
+            and result.get("rollout_steps") == 1
+            and result.get("records", [{}])[0].get("horizon_shape") == [1, 6]
+            and len(result.get("final_state_lerobot", [])) == 6
+        )
+        return Check(
+            "MuJoCo closed-loop dry-run smoke",
+            ok,
+            "renders and steps the public SO101 MuJoCo scene without loading MolmoAct2"
+            if ok
+            else f"unexpected output: {result}",
+        )
+
+
+def check_blocked_brev_dry_run_guard() -> Check:
+    submit = ROOT / "cluster/brev/submit_finetune_brev.sh"
+    brev_doc = ROOT / "docs/molmoact2_brev_finetuning.md"
+    if not submit.exists() or not brev_doc.exists():
+        return Check("blocked Brev dry-run guard", False, "missing submit script or runbook")
+    submit_text = submit.read_text()
+    doc_text = brev_doc.read_text()
+    required = [
+        "--allow-blocked-dry-run",
+        "ALLOW_BLOCKED_DRY_RUN",
+        "DRY_RUN",
+        "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set.",
+        "Dry run only; readiness blocked; not syncing or launching.",
+    ]
+    missing = [item for item in required if item not in submit_text]
+    if "--allow-blocked-dry-run" not in doc_text or "does not sync, SSH launch, or start" not in doc_text:
+        missing.append("runbook diagnostic dry-run note")
+    return Check(
+        "blocked Brev dry-run guard",
+        not missing,
+        "dry-run-only bypass is documented and cannot launch remotely" if not missing else f"missing {missing}",
+    )
+
+
 def main() -> None:
     checks: list[Check] = []
     script_paths = [
@@ -351,6 +423,8 @@ def main() -> None:
         [
             check_readiness_blocked(),
             check_joint_control_smoke(),
+            check_mujoco_rollout_dry_run(),
+            check_blocked_brev_dry_run_guard(),
         ]
     )
 
