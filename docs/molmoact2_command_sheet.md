@@ -162,3 +162,13 @@ cluster/brev/submit_finetune_brev.sh \
   --time 24h \
   --train-command '<official MolmoAct2 fine-tuning command>'
 ```
+
+Diagnostic blocked dry-run only:
+
+```bash
+cluster/brev/submit_finetune_brev.sh \
+  --dataset-repo-id carmensc/record-test-screwdriver \
+  --dry-run \
+  --allow-blocked-dry-run \
+  --train-command 'echo would train'
+```

@@ -83,6 +83,19 @@ cluster/brev/submit_finetune_brev.sh \
   --train-command 'echo would train'
 ```
 
+If you need to inspect the dry-run shape while the readiness gate is expected to
+block, keep it diagnostic-only:
+
+```bash
+cluster/brev/submit_finetune_brev.sh \
+  --dataset-repo-id carmensc/record-test-screwdriver \
+  --dry-run \
+  --allow-blocked-dry-run \
+  --train-command 'echo would train'
+```
+
+`--allow-blocked-dry-run` never launches a remote process.
+
 ## Monitor
 
 After launch, the script records SSH tail/kill commands in:

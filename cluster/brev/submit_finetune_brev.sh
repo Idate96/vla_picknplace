@@ -55,6 +55,7 @@ Options:
   --run-id ID              Stable run id for log naming.
   --skip-sync              Do not sync code before launching.
   --dry-run                Print resolved launch plan without SSH launch.
+  --allow-blocked-dry-run  With --dry-run only, print the dry-run plan even if readiness blocks.
   --follow                 Tail remote log after launch.
   --train-command CMD      Required remote command, run under ${BREV_CODE_DIR}.
 
@@ -73,6 +74,7 @@ JOB_TIME="${JOB_TIME:-24h}"
 RUN_ID=""
 DO_SYNC=1
 DRY_RUN=0
+ALLOW_BLOCKED_DRY_RUN=0
 FOLLOW_LOG=0
 TRAIN_COMMAND=""
 
@@ -92,6 +94,7 @@ while [[ $# -gt 0 ]]; do
         --run-id) RUN_ID="$2"; shift 2 ;;
         --skip-sync) DO_SYNC=0; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
+        --allow-blocked-dry-run) ALLOW_BLOCKED_DRY_RUN=1; shift ;;
         --follow) FOLLOW_LOG=1; shift ;;
         --train-command) TRAIN_COMMAND="$2"; shift 2 ;;
         -h|--help) show_help ;;
@@ -145,10 +148,26 @@ echo "GPUs: ${GPU_LIST}"
 echo "Train command: ${TRAIN_COMMAND}"
 
 echo "Running local readiness gate..."
-"${READINESS_CMD[@]}"
+READINESS_STATUS=0
+if "${READINESS_CMD[@]}"; then
+    READINESS_STATUS=0
+else
+    READINESS_STATUS=$?
+    if [ "${DRY_RUN}" -eq 1 ] && [ "${ALLOW_BLOCKED_DRY_RUN}" -eq 1 ]; then
+        echo "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set." >&2
+    else
+        exit "${READINESS_STATUS}"
+    fi
+fi
 
 if [ "${DRY_RUN}" -eq 1 ]; then
-    echo "Dry run only; not syncing or launching."
+    if [ "${READINESS_STATUS}" -eq 0 ]; then
+        echo "Dry run only; readiness passed; not syncing or launching."
+    else
+        echo "Dry run only; readiness blocked; not syncing or launching."
+    fi
+    echo "Remote command would run under ${BREV_CODE_DIR} with CUDA_VISIBLE_DEVICES=${GPU_LIST}."
+    echo "Remote log would be ${LOG_FILE}."
     exit 0
 fi
 

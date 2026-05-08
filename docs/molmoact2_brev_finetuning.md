@@ -154,6 +154,19 @@ Result: the script printed the `mw-newton-dev` launch plan, ran local readiness,
 and exited before any remote launch. Current blockers are the old Carmen dataset
 range/calibration mismatch and upstream MolmoAct2 trainability.
 
+For diagnostics only, the dry-run plan can be printed even while readiness is
+blocked:
+
+```bash
+cluster/brev/submit_finetune_brev.sh \
+  --dataset-repo-id carmensc/record-test-screwdriver \
+  --dry-run \
+  --allow-blocked-dry-run \
+  --train-command 'echo would train'
+```
+
+This still does not sync, SSH launch, or start a remote process.
+
 ## Deployment Gate
 
 Before real robot rollout:
