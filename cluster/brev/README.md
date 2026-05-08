@@ -54,8 +54,9 @@ stay separate.
 cluster/brev/setup_brev_env.sh
 ```
 
-This syncs code, installs `uv`, creates `.venv`, installs LeRobot and
-`requirements.txt`, and checks imports/GPU visibility.
+This syncs code, installs FFmpeg shared libraries for LeRobot video decoding,
+installs `uv`, creates `.venv`, installs LeRobot and `requirements.txt`, and
+checks imports/GPU visibility.
 
 ## Submit
 

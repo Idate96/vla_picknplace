@@ -52,9 +52,10 @@ Options:
 This script:
   1) Syncs vla_picknplace to Brev unless --skip-sync is set.
   2) Ensures uv is installed on the Brev VM.
-  3) Creates ${BREV_CODE_DIR}/.venv.
-  4) Installs LeRobot and requirements.txt.
-  5) Verifies imports and visible GPUs.
+  3) Ensures FFmpeg shared libraries are installed for LeRobot video decoding.
+  4) Creates ${BREV_CODE_DIR}/.venv.
+  5) Installs LeRobot and requirements.txt.
+  6) Verifies imports and visible GPUs.
 EOF
     exit 0
 }
@@ -101,6 +102,16 @@ BREV_DATA_DIR="$3"
 RUN_IMPORT_CHECK="$4"
 
 mkdir -p "${BREV_CODE_DIR}" "${BREV_LOGS_DIR}" "${BREV_DATA_DIR}"
+
+if ! ldconfig -p 2>/dev/null | grep -Eq 'libavutil\.so\.(56|57|58|59|60)'; then
+    if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
+        echo "[setup] Missing FFmpeg shared libraries and passwordless sudo is unavailable." >&2
+        exit 1
+    fi
+    echo "[setup] Installing FFmpeg shared libraries..."
+    sudo apt-get update
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg
+fi
 
 if [ ! -x "/home/nvidia/.local/bin/uv" ]; then
     echo "[setup] Installing uv..."
