@@ -47,8 +47,7 @@ MolmoAct2 training input.
 Only call the fine-tune path ready when:
 
 ```text
-brev ls succeeds without login prompt
-cluster/brev/.env.brev points at a reachable Brev VM
+cluster/brev/.env.brev points at a reachable Brev VM, e.g. mw-newton-dev
 cluster/brev/setup_brev_env.sh completes remotely
 check_finetune_readiness.py has no BLOCKED rows for the target dataset
 MolmoAct2 has a trainable public command or approved public local recipe

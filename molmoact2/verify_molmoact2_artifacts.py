@@ -70,6 +70,7 @@ def check_brev_manifest() -> Check:
         and contract.get("image_key") == "observation.images.front"
         and contract.get("state_shape") == [6]
         and contract.get("action_shape") == [6]
+        and brev.get("instance_name") == "mw-newton-dev"
         and brev.get("token_env") == "BREV_TOKEN"
         and brev.get("workflow") == "ssh_rsync_uv"
         and brev.get("setup_script") == "cluster/brev/setup_brev_env.sh"

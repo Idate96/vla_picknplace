@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -203,9 +204,32 @@ def compare_ranges(repo_id: str, revision: str, root: Path | None) -> Check:
 
 
 def check_brev() -> Check:
+    instance = os.environ.get("BREV_INSTANCE_NAME", "")
+    if instance:
+        proc = subprocess.run(
+            [
+                "ssh",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=8",
+                instance,
+                "true",
+            ],
+            text=True,
+            capture_output=True,
+            timeout=12,
+            check=False,
+        )
+        if proc.returncode == 0:
+            return Check("brev", "OK", f"SSH to configured Brev instance {instance!r} works")
+        detail = (proc.stderr or proc.stdout).strip().splitlines()
+        shown = detail[-1] if detail else f"ssh exited {proc.returncode}"
+        return Check("brev", "BLOCKED", f"BREV_INSTANCE_NAME={instance!r}, but SSH failed: {shown}")
+
     brev = shutil.which("brev")
     if brev is None:
-        return Check("brev", "BLOCKED", "brev CLI not found")
+        return Check("brev", "BLOCKED", "BREV_INSTANCE_NAME is not set and brev CLI was not found")
 
     try:
         proc = subprocess.run(

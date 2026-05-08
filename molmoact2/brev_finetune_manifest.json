@@ -35,7 +35,7 @@
     "status": "must be recollected before serious fine-tuning"
   },
   "brev": {
-    "instance_name": "molmoact2-ft",
+    "instance_name": "mw-newton-dev",
     "token_env": "BREV_TOKEN",
     "auth_provider": "nvidia",
     "min_total_vram_gb": 40,

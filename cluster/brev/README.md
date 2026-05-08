@@ -40,11 +40,14 @@ cp cluster/brev/.env.brev.template cluster/brev/.env.brev
 Edit:
 
 ```bash
-export BREV_INSTANCE_NAME=<your-brev-instance-name>
+export BREV_INSTANCE_NAME=mw-newton-dev
 export BREV_CODE_DIR=/home/nvidia/code/vla_picknplace
 export BREV_LOGS_DIR=/home/nvidia/logs/vla_picknplace
 export BREV_DATA_DIR=/home/nvidia/data/vla_picknplace
 ```
+
+This can reuse the same Brev VM as `moleworks_newton`; the code/log/data paths
+stay separate.
 
 ## Setup
 

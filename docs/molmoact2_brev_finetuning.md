@@ -101,11 +101,14 @@ Edit:
 
 ```bash
 export CLUSTER_TYPE=brev
-export BREV_INSTANCE_NAME=<your-brev-instance-name>
+export BREV_INSTANCE_NAME=mw-newton-dev
 export BREV_CODE_DIR=/home/nvidia/code/vla_picknplace
 export BREV_LOGS_DIR=/home/nvidia/logs/vla_picknplace
 export BREV_DATA_DIR=/home/nvidia/data/vla_picknplace
 ```
+
+This intentionally reuses the Newton Brev VM while keeping this repo under its
+own remote code/log/data directories.
 
 Then:
 

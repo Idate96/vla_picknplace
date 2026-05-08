@@ -85,7 +85,7 @@ cp cluster/brev/.env.brev.template cluster/brev/.env.brev
 Edit `cluster/brev/.env.brev`:
 
 ```bash
-export BREV_INSTANCE_NAME=<instance-name>
+export BREV_INSTANCE_NAME=mw-newton-dev
 export BREV_CODE_DIR=/home/nvidia/code/vla_picknplace
 export BREV_LOGS_DIR=/home/nvidia/logs/vla_picknplace
 export BREV_DATA_DIR=/home/nvidia/data/vla_picknplace
