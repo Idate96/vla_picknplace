@@ -110,6 +110,21 @@ screwdriver proxy, and a target area, calls MolmoAct2 on that image/state, and
 executes the first returned target in MuJoCo. It is still a smoke test, not a
 validated success metric.
 
+Short multi-call closed-loop smoke:
+
+```bash
+.venv/bin/python molmoact2/rollout_mujoco_so101.py \
+  --rollout-steps 3 \
+  --actions-per-inference 2 \
+  --width 320 \
+  --height 240 \
+  --num-steps 6 \
+  --device cuda \
+  --dtype bfloat16 \
+  --output outputs/molmoact2/closed_loop_molmo_three_step.json \
+  --frames-dir outputs/molmoact2/closed_loop_molmo_three_step_frames
+```
+
 ## Brev
 
 The canonical Brev path is under `cluster/brev/`:

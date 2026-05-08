@@ -113,6 +113,21 @@ This renders a fixed simulated front camera view, calls MolmoAct2 on that
 image/state, and executes the first returned target in MuJoCo. It is a
 closed-loop smoke test, not a validated success benchmark.
 
+Short multi-call variant:
+
+```bash
+.venv/bin/python molmoact2/rollout_mujoco_so101.py \
+  --rollout-steps 3 \
+  --actions-per-inference 2 \
+  --width 320 \
+  --height 240 \
+  --num-steps 6 \
+  --device cuda \
+  --dtype bfloat16 \
+  --output outputs/molmoact2/closed_loop_molmo_three_step.json \
+  --frames-dir outputs/molmoact2/closed_loop_molmo_three_step_frames
+```
+
 ## Brev Access
 
 The default path reuses the Newton Brev SSH instance:
