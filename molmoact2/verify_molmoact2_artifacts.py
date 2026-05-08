@@ -475,6 +475,48 @@ def check_collection_preflight_metadata_only() -> Check:
     )
 
 
+def check_old_carmen_dataset_range_blocked() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "old_carmen_full_preflight.json"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/check_collection_dataset.py",
+                "--dataset-repo-id",
+                "carmensc/record-test-screwdriver",
+                "--output-json",
+                str(report_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            report = json.loads(report_path.read_text())
+        except Exception:
+            report = {}
+    output = proc.stdout + "\n" + proc.stderr
+    blockers = report.get("blockers", [])
+    range_blocker = next((item for item in blockers if item.get("name") == "dataset ranges"), {})
+    detail = range_blocker.get("detail", "")
+    ok = (
+        proc.returncode != 0
+        and report.get("ready") is False
+        and report.get("status") == "blocked"
+        and range_blocker
+        and "shoulder_lift" in detail
+        and "MolmoAct2 collection handoff" in output
+    )
+    return Check(
+        "old Carmen full preflight blocks on ranges",
+        ok,
+        "full preflight rejects the old screwdriver dataset on joint range/calibration mismatch"
+        if ok
+        else f"unexpected output: {output[-500:]}",
+    )
+
+
 def main() -> None:
     checks: list[Check] = []
     script_paths = [
@@ -523,6 +565,7 @@ def main() -> None:
             check_mujoco_rollout_dry_run(),
             check_blocked_brev_dry_run_guard(),
             check_collection_preflight_metadata_only(),
+            check_old_carmen_dataset_range_blocked(),
         ]
     )
 
