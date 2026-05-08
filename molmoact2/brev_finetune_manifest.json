@@ -1,0 +1,54 @@
+{
+  "status": "blocked",
+  "blocked_reasons": [
+    "brev authentication is not available in this shell",
+    "upstream MolmoAct2 LeRobot wrapper is inference-only"
+  ],
+  "model": {
+    "repo_id": "allenai/MolmoAct2-SO100_101",
+    "norm_tag": "so100_so101_molmoact2",
+    "state_key": "observation.state",
+    "action_key": "action",
+    "action_format": "absolute calibrated 6D joint target",
+    "action_horizon": 30,
+    "joint_names": [
+      "shoulder_pan",
+      "shoulder_lift",
+      "elbow_flex",
+      "wrist_flex",
+      "wrist_roll",
+      "gripper"
+    ]
+  },
+  "target_dataset_contract": {
+    "format": "LeRobot v3",
+    "fps": 30,
+    "image_key": "observation.images.front",
+    "state_shape": [6],
+    "action_shape": [6],
+    "task": "pickup screwdriver",
+    "calibration": "SO100/SO101 follower body joints in degrees, gripper 0..100"
+  },
+  "recommended_real_dataset": {
+    "repo_id_placeholder": "<hf_user>/carmen_screwdriver_so100_vla",
+    "collection_guide": "docs/so100_vla_data_collection_guide.md",
+    "status": "must be recollected before serious fine-tuning"
+  },
+  "brev": {
+    "instance_name": "molmoact2-ft",
+    "token_env": "BREV_TOKEN",
+    "auth_provider": "nvidia",
+    "min_total_vram_gb": 40,
+    "min_disk_gb": 500,
+    "min_capability": 8.0,
+    "workflow": "ssh_rsync_uv",
+    "env_template": "cluster/brev/.env.brev.template",
+    "setup_script": "cluster/brev/setup_brev_env.sh",
+    "submit_script": "cluster/brev/submit_finetune_brev.sh"
+  },
+  "commands": {
+    "readiness": ".venv/bin/python molmoact2/check_finetune_readiness.py --dataset-repo-id <hf_user>/<dataset>",
+    "setup_brev": "cluster/brev/setup_brev_env.sh",
+    "launch_when_unblocked": "cluster/brev/submit_finetune_brev.sh --dataset-repo-id <hf_user>/<dataset> --gpus 1 --time 24h --train-command '<official MolmoAct2 fine-tuning command>'"
+  }
+}

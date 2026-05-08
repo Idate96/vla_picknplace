@@ -32,7 +32,6 @@ nvidia-smi
 if [ ! -x "$VENV/bin/lerobot-train" ]; then
   echo "Creating LeRobot environment at $VENV"
   "$UV" venv --python 3.12 "$VENV"
-  "$UV" pip install --python "$VENV/bin/python" -e "$PROJECT_ROOT/../lerobot[training]"
   "$UV" pip install --python "$VENV/bin/python" -r "$PROJECT_ROOT/requirements.txt"
 fi
 
