@@ -119,6 +119,10 @@ cluster/brev/setup_brev_env.sh
 This syncs the repo with rsync, installs `uv`, creates `.venv`, installs
 LeRobot and `requirements.txt`, checks imports, and prints visible GPUs.
 
+Verified on 2026-05-08 against `mw-newton-dev`: the setup script synced to
+`/home/nvidia/code/vla_picknplace`, installed the remote Python environment,
+passed the import check, and saw 8 A100-SXM4-80GB GPUs.
+
 Readiness check:
 
 ```bash
