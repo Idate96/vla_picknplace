@@ -1,7 +1,7 @@
 {
   "status": "blocked",
   "blocked_reasons": [
-    "brev authentication is not available in this shell",
+    "old Carmen diagnostic dataset has joint range/calibration mismatches",
     "upstream MolmoAct2 LeRobot wrapper is inference-only"
   ],
   "model": {
