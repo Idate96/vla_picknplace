@@ -23,6 +23,45 @@ GPU; try model control in sim; prepare Brev fine-tuning.
 | Verify Brev can use the Newton instance | `ssh mw-newton-dev 'hostname && nvidia-smi -L'` reaches `brev-e5yzhjkxe` with 8 A100-SXM4-80GB GPUs. `cluster/brev/setup_brev_env.sh` synced the repo to `/home/nvidia/code/vla_picknplace`, created `.venv`, installed requirements, passed import checks, and printed GPU visibility. With `BREV_INSTANCE_NAME=mw-newton-dev`, local readiness also reports `OK brev: SSH to configured Brev instance 'mw-newton-dev' works`. Remote command `ssh mw-newton-dev 'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'` passed, including remote Python imports, script compile checks, and MuJoCo dry-run smoke. | Done |
 | Attempt real Brev fine-tuning | Guarded launch command tested: `cluster/brev/submit_finetune_brev.sh --dataset-repo-id carmensc/record-test-screwdriver --dry-run --train-command 'echo would train'`. It printed the Brev host/log plan, ran the local readiness gate, and exited nonzero before launch. Diagnostic-only launch shape also tested with `--allow-blocked-dry-run --readiness-report outputs/molmoact2/test_brev_submit_readiness.json`; it printed the same blockers, wrote machine-readable JSON with `ready=false`, then exited 0 without syncing or launching. Blockers were old Carmen dataset range/calibration mismatch and public upstream MolmoAct2 training support still inference-only. | Blocked |
 
+## Latest Audit Evidence
+
+Checked on 2026-05-08 from `~/git/vla_picknplace`.
+
+```text
+git status --short --branch
+## main...origin/main
+
+git ls-remote https://github.com/allenai/molmoact2.git HEAD
+c45fcbca4501339bc0b12e30a273c15bf4d56cf0 HEAD
+
+git ls-remote https://github.com/allenai/lerobot.git refs/heads/molmoact2-hf-inference
+c123084cf840c00af5c0833832fc58e590412851 refs/heads/molmoact2-hf-inference
+```
+
+The persisted diagnostic Brev report at
+`outputs/molmoact2/test_brev_submit_readiness.json` has:
+
+```text
+ready=false
+status=blocked
+checks:
+  model norm: OK
+  dataset metadata: OK
+  dataset ranges: BLOCKED
+  brev: OK
+  upstream fine-tune code: BLOCKED
+blockers:
+  dataset ranges
+  upstream fine-tune code
+```
+
+The synced Brev tree also passes:
+
+```bash
+ssh mw-newton-dev \
+  'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'
+```
+
 ## Current Blockers
 
 ```text
