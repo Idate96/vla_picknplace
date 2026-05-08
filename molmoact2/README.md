@@ -143,6 +143,10 @@ cluster/brev/submit_finetune_brev.sh \
   --train-command '<official MolmoAct2 fine-tuning command>'
 ```
 
+`check_finetune_readiness.py` reads `cluster/brev/.env.brev` or the template
+for `BREV_INSTANCE_NAME` when the variable is not exported, so the default path
+uses the Newton `mw-newton-dev` SSH alias before Brev CLI.
+
 As of 2026-05-08, this should still block before real training because Ai2's
 public MolmoAct2 LeRobot wrapper is inference-only. Do not replace that with a
 private simulator workaround.

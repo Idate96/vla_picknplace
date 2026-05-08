@@ -21,7 +21,7 @@ GPU; try model control in sim; prepare Brev fine-tuning.
 | Run current local GPU inference | Fresh command on this repo: `.venv/bin/python molmoact2/test_on_lerobot_frame.py --dataset-repo-id carmensc/record-test-screwdriver --frame 30 --run-model --device cuda --dtype bfloat16 --output outputs/molmoact2/carmen_current_one_frame_inference.json`. It loaded the checkpoint on the local RTX 4090 and returned `Actions shape: (1, 30, 6)`. | Done |
 | Try model control in sim | `molmoact2/simulate_joint_control.py` is a repo-local public joint-space command sim for the MolmoAct2 absolute 6D SO100/SO101 action horizon. Fresh command: `.venv/bin/python molmoact2/simulate_joint_control.py --model-output outputs/molmoact2/carmen_current_one_frame_inference.json --output outputs/molmoact2/carmen_joint_control_smoke.json`. It simulated 30 commands, clipped 6 steps, and ended at `[-3.30, 45.47, 35.40, 88.38, -65.58, 32.04]`. `molmoact2/simulate_mujoco_so101.py` also replayed the same horizon through the public RobotStudio SO101 MuJoCo arm model: 30 commands, 17 MuJoCo steps per command, no initial/control clipping, final LeRobot-unit state `[-3.35, 11.42, 31.44, 88.48, -65.61, 32.08]`. `molmoact2/rollout_mujoco_so101.py` then ran MolmoAct2 closed-loop on a simulated fixed front camera view. The current-schema one-step GPU run, `.venv/bin/python molmoact2/rollout_mujoco_so101.py --rollout-steps 1 --actions-per-inference 1 --width 320 --height 240 --num-steps 6 --device cuda --dtype bfloat16 --output outputs/molmoact2/closed_loop_molmo_schema_check.json --frames-dir outputs/molmoact2/closed_loop_molmo_schema_check_frames`, wrote `model_loaded=true`, `horizon_source=molmoact2_predict_action`, `horizon_shape=[30,6]`, nonblank image stats with `std=75.89`, `clipped_control_count=0`, and final state `[-6.32, 42.35, 35.53, 88.29, -76.10, 32.88]`. A stronger local RTX 4090 run, `.venv/bin/python molmoact2/rollout_mujoco_so101.py --rollout-steps 3 --actions-per-inference 2 --width 320 --height 240 --num-steps 6 --device cuda --dtype bfloat16 --output outputs/molmoact2/closed_loop_molmo_three_step.json --frames-dir outputs/molmoact2/closed_loop_molmo_three_step_frames`, completed three model calls, executed two targets per call, returned a 30x6 horizon each time, had `clipped_control_count=0`, wrote four camera frames, and ended at `[-6.61, 40.36, 31.37, 90.70, -87.56, 33.79]`. This is still a smoke test, not a validated task-success benchmark. | Done for sim-control smoke |
 | Prepare Brev fine-tuning workflow | `cluster/brev/` contains the SSH/rsync/uv workflow. `cluster/brev/.env.brev.template` defaults to `BREV_INSTANCE_NAME=mw-newton-dev`, with separate `/home/nvidia/code/vla_picknplace` and `/home/nvidia/logs/vla_picknplace` paths. | Done |
-| Verify Brev can use the Newton instance | `ssh mw-newton-dev 'hostname && nvidia-smi -L'` reaches `brev-e5yzhjkxe` with 8 A100-SXM4-80GB GPUs. `cluster/brev/setup_brev_env.sh` synced the repo to `/home/nvidia/code/vla_picknplace`, ensured FFmpeg shared libraries for LeRobot video decoding, created `.venv`, installed requirements, passed import checks, and printed GPU visibility. With `BREV_INSTANCE_NAME=mw-newton-dev`, local readiness also reports `OK brev: SSH to configured Brev instance 'mw-newton-dev' works`. Remote command `ssh mw-newton-dev 'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'` passed, including the `Brev video decode setup` guard, remote Python imports, script compile checks, and MuJoCo dry-run smoke. | Done |
+| Verify Brev can use the Newton instance | `ssh mw-newton-dev 'hostname && nvidia-smi -L'` reaches `brev-e5yzhjkxe` with 8 A100-SXM4-80GB GPUs. `cluster/brev/setup_brev_env.sh` synced the repo to `/home/nvidia/code/vla_picknplace`, ensured FFmpeg shared libraries for LeRobot video decoding, created `.venv`, installed requirements, passed import checks, and printed GPU visibility. With `BREV_INSTANCE_NAME` unset, local readiness reads `cluster/brev/.env.brev` and reports `OK brev: SSH to Brev instance 'mw-newton-dev' works from cluster/brev/.env.brev`, so Brev CLI login is not required when the SSH alias works. Remote command `ssh mw-newton-dev 'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'` passed, including the `Brev video decode setup` guard, remote Python imports, script compile checks, and MuJoCo dry-run smoke. | Done |
 | Attempt real Brev fine-tuning | Guarded launch command tested: `cluster/brev/submit_finetune_brev.sh --dataset-repo-id carmensc/record-test-screwdriver --dry-run --train-command 'echo would train'`. It printed the Brev host/log plan, ran the local readiness gate, and exited nonzero before launch. Diagnostic-only launch shape also tested with `--allow-blocked-dry-run --readiness-report outputs/molmoact2/test_brev_submit_readiness.json`; it printed the same blockers, wrote machine-readable JSON with `ready=false`, then exited 0 without syncing or launching. Blockers were old Carmen dataset range/calibration mismatch and public upstream MolmoAct2 training support still inference-only. | Blocked |
 
 ## Latest Audit Evidence
@@ -62,6 +62,20 @@ The synced Brev tree also passes:
 ssh mw-newton-dev \
   'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'
 ```
+
+Direct local readiness with `BREV_INSTANCE_NAME` removed from the environment
+now uses the repo Brev SSH default:
+
+```bash
+env -u BREV_INSTANCE_NAME \
+  .venv/bin/python molmoact2/check_finetune_readiness.py \
+  --dataset-repo-id carmensc/record-test-screwdriver \
+  --skip-ranges \
+  --output-json outputs/molmoact2/current_skip_ranges_reaudit.json
+```
+
+The resulting JSON has `brev: OK` from `cluster/brev/.env.brev` and blocks only
+on `upstream fine-tune code` in this skip-ranges audit.
 
 ## Current Blockers
 

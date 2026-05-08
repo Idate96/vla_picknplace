@@ -145,6 +145,11 @@ Readiness check:
   --dataset-repo-id <hf_user>/<dataset>
 ```
 
+If `BREV_INSTANCE_NAME` is not exported, the readiness script reads
+`cluster/brev/.env.brev` first, then `cluster/brev/.env.brev.template`, before
+falling back to Brev CLI. With the default `mw-newton-dev` alias working, this
+does not require a separate Brev CLI login.
+
 Once the gate is clear and a trainable command exists:
 
 ```bash

@@ -145,6 +145,10 @@ brev refresh
 brev ls --all
 ```
 
+`check_finetune_readiness.py` also follows this SSH-first path: it reads
+`cluster/brev/.env.brev` or the template when `BREV_INSTANCE_NAME` is not
+exported.
+
 Token path:
 
 ```bash

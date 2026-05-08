@@ -375,7 +375,7 @@ def template_env(name: str) -> str | None:
 
 def check_readiness_blocked() -> Check:
     env = os.environ.copy()
-    env.setdefault("BREV_INSTANCE_NAME", template_env("BREV_INSTANCE_NAME") or "")
+    env.pop("BREV_INSTANCE_NAME", None)
     with tempfile.TemporaryDirectory() as tmp:
         report_path = Path(tmp) / "readiness.json"
         proc = subprocess.run(
@@ -404,19 +404,21 @@ def check_readiness_blocked() -> Check:
         and ("inference-only" in output or "trainability is unverified" in output)
     )
     brev_accounted_for = "OK      brev:" in output or "BLOCKED brev:" in output
+    brev_uses_ssh_default = "brev CLI found" not in output and "logged out" not in output
     expected = (
         proc.returncode != 0
         and "Not ready for Brev fine-tuning." in output
         and upstream_accounted_for
         and brev_accounted_for
+        and brev_uses_ssh_default
         and report.get("ready") is False
         and report.get("status") == "blocked"
         and any(item.get("name") == "upstream fine-tune code" for item in report.get("blockers", []))
     )
     if expected and "OK      brev:" in output:
-        detail = "uses configured Newton Brev instance; blocks on upstream fine-tune support"
+        detail = "uses repo Brev SSH default without Brev CLI auth; blocks on upstream fine-tune support"
     elif expected:
-        detail = "Brev SSH is not reachable from this shell; upstream fine-tune support is still blocked"
+        detail = "repo Brev SSH default is not reachable from this shell; upstream fine-tune support is still blocked"
     else:
         detail = f"unexpected readiness output: {output[-500:]}"
     return Check(

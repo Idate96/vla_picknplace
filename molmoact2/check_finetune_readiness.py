@@ -41,6 +41,7 @@ EXPECTED_JOINTS = [
     "wrist_roll",
     "gripper",
 ]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass
@@ -209,8 +210,31 @@ def compare_ranges(repo_id: str, revision: str, root: Path | None) -> Check:
     return Check("dataset ranges", "OK", "state/action ranges are inside MolmoAct2 q01/q99")
 
 
+def read_brev_instance_name() -> tuple[str, str] | tuple[None, None]:
+    env_value = os.environ.get("BREV_INSTANCE_NAME", "").strip()
+    if env_value:
+        return env_value, "environment"
+
+    for rel_path in ("cluster/brev/.env.brev", "cluster/brev/.env.brev.template"):
+        path = ROOT / rel_path
+        if not path.exists():
+            continue
+        prefix = "export BREV_INSTANCE_NAME="
+        for raw_line in path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line.startswith(prefix):
+                continue
+            value = line[len(prefix) :].strip()
+            if value.startswith("${"):
+                continue
+            value = value.strip("\"'")
+            if value:
+                return value, rel_path
+    return None, None
+
+
 def check_brev() -> Check:
-    instance = os.environ.get("BREV_INSTANCE_NAME", "")
+    instance, source = read_brev_instance_name()
     if instance:
         proc = subprocess.run(
             [
@@ -228,10 +252,10 @@ def check_brev() -> Check:
             check=False,
         )
         if proc.returncode == 0:
-            return Check("brev", "OK", f"SSH to configured Brev instance {instance!r} works")
+            return Check("brev", "OK", f"SSH to Brev instance {instance!r} works from {source}")
         detail = (proc.stderr or proc.stdout).strip().splitlines()
         shown = detail[-1] if detail else f"ssh exited {proc.returncode}"
-        return Check("brev", "BLOCKED", f"BREV_INSTANCE_NAME={instance!r}, but SSH failed: {shown}")
+        return Check("brev", "BLOCKED", f"BREV_INSTANCE_NAME={instance!r} from {source}, but SSH failed: {shown}")
 
     brev = shutil.which("brev")
     if brev is None:
