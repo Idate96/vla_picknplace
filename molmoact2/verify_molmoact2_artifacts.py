@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -157,7 +158,23 @@ def check_no_external_course_paths() -> Check:
     )
 
 
+def template_env(name: str) -> str | None:
+    path = ROOT / "cluster/brev/.env.brev.template"
+    if not path.exists():
+        return None
+    prefix = f"export {name}="
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line.startswith(prefix):
+            continue
+        value = line[len(prefix) :].strip()
+        return value.strip("\"'")
+    return None
+
+
 def check_readiness_blocked() -> Check:
+    env = os.environ.copy()
+    env.setdefault("BREV_INSTANCE_NAME", template_env("BREV_INSTANCE_NAME") or "")
     proc = subprocess.run(
         [
             sys.executable,
@@ -167,6 +184,7 @@ def check_readiness_blocked() -> Check:
             "--skip-ranges",
         ],
         cwd=ROOT,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -174,22 +192,25 @@ def check_readiness_blocked() -> Check:
     output = proc.stdout + "\n" + proc.stderr
     upstream_accounted_for = (
         "BLOCKED upstream fine-tune code" in output
-        and "inference-only" in output
-        or "BLOCKED upstream fine-tune code" in output
-        and "trainability is unverified" in output
+        and ("inference-only" in output or "trainability is unverified" in output)
     )
+    brev_accounted_for = "OK      brev:" in output or "BLOCKED brev:" in output
     expected = (
         proc.returncode != 0
-        and "BLOCKED brev" in output
         and "Not ready for Brev fine-tuning." in output
         and upstream_accounted_for
+        and brev_accounted_for
     )
+    if expected and "OK      brev:" in output:
+        detail = "uses configured Newton Brev instance; blocks on upstream fine-tune support"
+    elif expected:
+        detail = "Brev SSH is not reachable from this shell; upstream fine-tune support is still blocked"
+    else:
+        detail = f"unexpected readiness output: {output[-500:]}"
     return Check(
         "check_finetune_readiness.py --skip-ranges",
         expected,
-        "blocks on Brev logout; upstream is either inference-only or temporarily uninspectable"
-        if expected
-        else f"unexpected readiness output: {output[-500:]}",
+        detail,
     )
 
 
