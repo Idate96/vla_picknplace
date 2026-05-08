@@ -160,12 +160,14 @@ Blocked launch check performed on 2026-05-08:
 cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id carmensc/record-test-screwdriver \
   --dry-run \
+  --readiness-report outputs/molmoact2/blocked_brev_readiness.json \
   --train-command 'echo would train'
 ```
 
 Result: the script printed the `mw-newton-dev` launch plan, ran local readiness,
-and exited before any remote launch. Current blockers are the old Carmen dataset
-range/calibration mismatch and upstream MolmoAct2 trainability.
+wrote the local JSON readiness report, and exited before any remote launch.
+Current blockers are the old Carmen dataset range/calibration mismatch and
+upstream MolmoAct2 trainability.
 
 For diagnostics only, the dry-run plan can be printed even while readiness is
 blocked:
@@ -175,6 +177,7 @@ cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id carmensc/record-test-screwdriver \
   --dry-run \
   --allow-blocked-dry-run \
+  --readiness-report outputs/molmoact2/blocked_brev_readiness.json \
   --train-command 'echo would train'
 ```
 

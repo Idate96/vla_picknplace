@@ -191,6 +191,7 @@ cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id <hf_user>/<dataset> \
   --gpus 1 \
   --time 24h \
+  --readiness-report outputs/molmoact2/brev_readiness.json \
   --train-command '<official MolmoAct2 fine-tuning command>'
 ```
 
@@ -201,5 +202,6 @@ cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id carmensc/record-test-screwdriver \
   --dry-run \
   --allow-blocked-dry-run \
+  --readiness-report outputs/molmoact2/blocked_brev_readiness.json \
   --train-command 'echo would train'
 ```

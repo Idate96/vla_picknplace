@@ -79,6 +79,7 @@ Dry-run the remote launch shape without starting a process:
 cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id <hf_user>/<dataset> \
   --dry-run \
+  --readiness-report outputs/molmoact2/brev_readiness.json \
   --train-command 'echo would train'
 ```
 
@@ -90,10 +91,13 @@ cluster/brev/submit_finetune_brev.sh \
   --dataset-repo-id carmensc/record-test-screwdriver \
   --dry-run \
   --allow-blocked-dry-run \
+  --readiness-report outputs/molmoact2/blocked_brev_readiness.json \
   --train-command 'echo would train'
 ```
 
-`--allow-blocked-dry-run` never launches a remote process.
+`--allow-blocked-dry-run` never launches a remote process. The readiness report
+is local JSON and records the exact blockers from
+`molmoact2/check_finetune_readiness.py`.
 
 ## Monitor
 

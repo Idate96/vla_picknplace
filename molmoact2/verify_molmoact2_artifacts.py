@@ -377,18 +377,27 @@ def check_blocked_brev_dry_run_guard() -> Check:
     doc_text = brev_doc.read_text()
     required = [
         "--allow-blocked-dry-run",
+        "--readiness-report",
         "ALLOW_BLOCKED_DRY_RUN",
+        "READINESS_REPORT",
+        "--output-json",
         "DRY_RUN",
         "Readiness gate blocked; continuing only because --allow-blocked-dry-run was set.",
         "Dry run only; readiness blocked; not syncing or launching.",
     ]
     missing = [item for item in required if item not in submit_text]
-    if "--allow-blocked-dry-run" not in doc_text or "does not sync, SSH launch, or start" not in doc_text:
+    if (
+        "--allow-blocked-dry-run" not in doc_text
+        or "--readiness-report" not in doc_text
+        or "does not sync, SSH launch, or start" not in doc_text
+    ):
         missing.append("runbook diagnostic dry-run note")
     return Check(
         "blocked Brev dry-run guard",
         not missing,
-        "dry-run-only bypass is documented and cannot launch remotely" if not missing else f"missing {missing}",
+        "dry-run-only bypass is documented, writes readiness JSON, and cannot launch remotely"
+        if not missing
+        else f"missing {missing}",
     )
 
 

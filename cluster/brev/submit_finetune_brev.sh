@@ -53,6 +53,7 @@ Options:
   --gpus N                 Use GPUs 0..N-1 if --gpu-list is not set (default: 1).
   --time TIME              GNU timeout duration, e.g. 24h or 120m (default: 24h).
   --run-id ID              Stable run id for log naming.
+  --readiness-report PATH  Local JSON readiness report path.
   --skip-sync              Do not sync code before launching.
   --dry-run                Print resolved launch plan without SSH launch.
   --allow-blocked-dry-run  With --dry-run only, print the dry-run plan even if readiness blocks.
@@ -72,6 +73,7 @@ GPU_LIST=""
 NUM_GPUS=1
 JOB_TIME="${JOB_TIME:-24h}"
 RUN_ID=""
+READINESS_REPORT=""
 DO_SYNC=1
 DRY_RUN=0
 ALLOW_BLOCKED_DRY_RUN=0
@@ -92,6 +94,7 @@ while [[ $# -gt 0 ]]; do
         --gpus) NUM_GPUS="$2"; shift 2 ;;
         --time) JOB_TIME="$2"; shift 2 ;;
         --run-id) RUN_ID="$2"; shift 2 ;;
+        --readiness-report) READINESS_REPORT="$2"; shift 2 ;;
         --skip-sync) DO_SYNC=0; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         --allow-blocked-dry-run) ALLOW_BLOCKED_DRY_RUN=1; shift ;;
@@ -135,19 +138,27 @@ esac
 
 RUN_ID="${RUN_ID:-$(date +%F_%H-%M-%S)_molmoact2}"
 LOG_FILE="${BREV_LOGS_DIR}/brev-${RUN_ID}.log"
+READINESS_REPORT="${READINESS_REPORT:-outputs/molmoact2/brev_readiness-${RUN_ID}.json}"
+case "${READINESS_REPORT}" in
+    /*) ;;
+    *) READINESS_REPORT="${PROJECT_ROOT}/${READINESS_REPORT}" ;;
+esac
 
 READINESS_CMD=("${PYTHON_BIN}" "${PROJECT_ROOT}/molmoact2/check_finetune_readiness.py" "--dataset-repo-id" "${DATASET_REPO_ID}")
 if [ -n "${DATASET_ROOT}" ]; then
     READINESS_CMD+=("--dataset-root" "${DATASET_ROOT}")
 fi
+READINESS_CMD+=("--output-json" "${READINESS_REPORT}")
 
 echo "Brev host: ${BREV_INSTANCE_NAME}"
 echo "Remote code: ${BREV_CODE_DIR}"
 echo "Remote log: ${LOG_FILE}"
+echo "Readiness report: ${READINESS_REPORT}"
 echo "GPUs: ${GPU_LIST}"
 echo "Train command: ${TRAIN_COMMAND}"
 
 echo "Running local readiness gate..."
+mkdir -p "$(dirname "${READINESS_REPORT}")"
 READINESS_STATUS=0
 if "${READINESS_CMD[@]}"; then
     READINESS_STATUS=0
@@ -168,6 +179,7 @@ if [ "${DRY_RUN}" -eq 1 ]; then
     fi
     echo "Remote command would run under ${BREV_CODE_DIR} with CUDA_VISIBLE_DEVICES=${GPU_LIST}."
     echo "Remote log would be ${LOG_FILE}."
+    echo "Readiness report is ${READINESS_REPORT}."
     exit 0
 fi
 
@@ -244,6 +256,7 @@ KILL_CMD="ssh ${BREV_INSTANCE_NAME} \"kill ${REMOTE_PID}\""
     printf "host: %s\n" "${BREV_INSTANCE_NAME}"
     printf "pid: %s\n" "${REMOTE_PID}"
     printf "log: %s\n" "${REMOTE_LOG}"
+    printf "readiness_report: %s\n" "${READINESS_REPORT}"
     printf "train_command: %s\n" "${TRAIN_COMMAND}"
     printf "%s\n" "${TAIL_CMD}"
     printf "%s\n\n" "${KILL_CMD}"
