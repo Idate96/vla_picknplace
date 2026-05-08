@@ -242,6 +242,37 @@ def check_brev_env_template() -> Check:
     )
 
 
+def check_brev_video_decode_setup() -> Check:
+    setup_path = ROOT / "cluster/brev/setup_brev_env.sh"
+    readme_path = ROOT / "cluster/brev/README.md"
+    runbook_path = ROOT / "docs/molmoact2_brev_finetuning.md"
+    if not setup_path.exists():
+        return Check("Brev video decode setup", False, "missing setup_brev_env.sh")
+    setup_text = setup_path.read_text()
+    required_setup = [
+        "libavutil\\.so",
+        "sudo -n true",
+        "apt-get install -y ffmpeg",
+    ]
+    missing = [item for item in required_setup if item not in setup_text]
+
+    for path in (readme_path, runbook_path):
+        if not path.exists():
+            missing.append(str(path.relative_to(ROOT)))
+            continue
+        text = path.read_text()
+        if "FFmpeg shared libraries" not in text or "LeRobot" not in text or "video decoding" not in text:
+            missing.append(str(path.relative_to(ROOT)))
+
+    return Check(
+        "Brev video decode setup",
+        not missing,
+        "setup installs FFmpeg shared libraries needed for LeRobot video decoding"
+        if not missing
+        else f"missing {missing}",
+    )
+
+
 def check_no_external_course_paths() -> Check:
     proc = subprocess.run(
         ["git", "ls-files"],
@@ -598,6 +629,7 @@ def main() -> None:
     checks.append(check_brev_manifest())
     checks.append(check_manifest_upstream_refs_current())
     checks.append(check_brev_env_template())
+    checks.append(check_brev_video_decode_setup())
     checks.append(check_no_external_course_paths())
     for rel in [
         "cluster/brev/README.md",
