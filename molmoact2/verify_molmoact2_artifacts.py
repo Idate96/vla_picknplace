@@ -120,6 +120,61 @@ def check_brev_manifest() -> Check:
     )
 
 
+def git_ls_remote(repo: str, ref: str) -> str | None:
+    try:
+        proc = subprocess.run(
+            ["git", "ls-remote", repo, ref],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except Exception:
+        return None
+    if proc.returncode != 0:
+        return None
+    line = proc.stdout.strip().splitlines()
+    if not line:
+        return None
+    return line[0].split()[0]
+
+
+def check_manifest_upstream_refs_current() -> Check:
+    path = ROOT / "molmoact2/brev_finetune_manifest.json"
+    if not path.exists():
+        return Check("manifest upstream refs", False, "missing manifest")
+    try:
+        upstream = load_json(path).get("upstream", {})
+    except Exception as exc:
+        return Check("manifest upstream refs", False, f"invalid manifest json: {exc}")
+
+    expected_molmo = upstream.get("molmoact2_head")
+    expected_lerobot = upstream.get("lerobot_ref")
+    actual_molmo = git_ls_remote("https://github.com/allenai/molmoact2.git", "HEAD")
+    actual_lerobot = git_ls_remote(
+        "https://github.com/allenai/lerobot.git",
+        "refs/heads/molmoact2-hf-inference",
+    )
+    ok = (
+        actual_molmo is not None
+        and actual_lerobot is not None
+        and actual_molmo == expected_molmo
+        and actual_lerobot == expected_lerobot
+    )
+    return Check(
+        "manifest upstream refs",
+        ok,
+        f"current refs match manifest ({actual_molmo}, {actual_lerobot})"
+        if ok
+        else (
+            "manifest refs are stale or upstream could not be inspected: "
+            f"manifest=({expected_molmo}, {expected_lerobot}) "
+            f"live=({actual_molmo}, {actual_lerobot})"
+        ),
+    )
+
+
 def check_py_compile(paths: list[Path]) -> Check:
     proc = subprocess.run(
         [sys.executable, "-m", "py_compile", *[str(path) for path in paths]],
@@ -535,6 +590,7 @@ def main() -> None:
         ROOT / "cluster/brev/submit_finetune_brev.sh",
     ]
     checks.append(check_brev_manifest())
+    checks.append(check_manifest_upstream_refs_current())
     checks.append(check_brev_env_template())
     checks.append(check_no_external_course_paths())
     for rel in [
