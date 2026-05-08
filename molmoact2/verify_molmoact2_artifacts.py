@@ -123,6 +123,8 @@ def check_brev_manifest() -> Check:
         and "cluster/brev/submit_finetune_brev.sh" in commands.get("launch_when_unblocked", "")
         and "--readiness-report" in commands.get("launch_when_unblocked", "")
         and "check_finetune_readiness.py" in commands.get("readiness_json", "")
+        and "summarize_readiness.py" in commands.get("readiness_summary", "")
+        and "--strict-exit-code" in commands.get("readiness_summary", "")
         and "check_collection_dataset.py" in commands.get("collection_preflight", "")
         and "--allow-blocked-dry-run" in commands.get("diagnostic_blocked_dry_run", "")
         and "--train-command" in commands.get("launch_when_unblocked", "")
@@ -486,6 +488,61 @@ def check_joint_control_smoke() -> Check:
         )
 
 
+def check_readiness_summary_smoke() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "readiness.json"
+        report_path.write_text(
+            json.dumps(
+                {
+                    "ready": False,
+                    "status": "blocked",
+                    "blockers": [
+                        {
+                            "name": "dataset ranges",
+                            "detail": "shoulder_lift dataset range is outside MolmoAct2 q01/q99",
+                        },
+                        {
+                            "name": "upstream fine-tune code",
+                            "detail": "MolmoAct2 wrapper is inference-only",
+                        },
+                    ],
+                    "checks": [
+                        {"name": "model norm", "status": "OK"},
+                        {"name": "dataset ranges", "status": "BLOCKED"},
+                        {"name": "upstream fine-tune code", "status": "BLOCKED"},
+                    ],
+                }
+            )
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/summarize_readiness.py",
+                str(report_path),
+                "--strict-exit-code",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    output = proc.stdout + "\n" + proc.stderr
+    ok = (
+        proc.returncode == 1
+        and "Status: BLOCKED" in output
+        and "Brev launch: NO" in output
+        and "Recollect or prove a calibrated offline conversion" in output
+        and "Wait for Ai2 trainable MolmoAct2 code" in output
+    )
+    return Check(
+        "readiness summary smoke",
+        ok,
+        "summarizes blockers into a no-launch decision with next actions"
+        if ok
+        else f"unexpected output: {output[-500:]}",
+    )
+
+
 def check_mujoco_rollout_dry_run() -> Check:
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -665,6 +722,7 @@ def main() -> None:
         ROOT / "molmoact2/simulate_joint_control.py",
         ROOT / "molmoact2/simulate_mujoco_so101.py",
         ROOT / "molmoact2/rollout_mujoco_so101.py",
+        ROOT / "molmoact2/summarize_readiness.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
         ROOT / "molmoact2/check_collection_dataset.py",
@@ -704,6 +762,7 @@ def main() -> None:
     checks.extend(
         [
             check_readiness_blocked(),
+            check_readiness_summary_smoke(),
             check_joint_control_smoke(),
             check_mujoco_rollout_dry_run(),
             check_blocked_brev_dry_run_guard(),

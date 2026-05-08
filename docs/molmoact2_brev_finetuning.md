@@ -142,7 +142,13 @@ Readiness check:
 ```bash
 .venv/bin/python \
   molmoact2/check_finetune_readiness.py \
-  --dataset-repo-id <hf_user>/<dataset>
+  --dataset-repo-id <hf_user>/<dataset> \
+  --output-json outputs/molmoact2/readiness.json
+
+.venv/bin/python \
+  molmoact2/summarize_readiness.py \
+  outputs/molmoact2/readiness.json \
+  --strict-exit-code
 ```
 
 If `BREV_INSTANCE_NAME` is not exported, the readiness script reads

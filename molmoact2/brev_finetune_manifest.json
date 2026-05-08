@@ -86,6 +86,7 @@
   "commands": {
     "readiness": ".venv/bin/python molmoact2/check_finetune_readiness.py --dataset-repo-id <hf_user>/<dataset>",
     "readiness_json": ".venv/bin/python molmoact2/check_finetune_readiness.py --dataset-repo-id <hf_user>/<dataset> --output-json outputs/molmoact2/readiness.json",
+    "readiness_summary": ".venv/bin/python molmoact2/summarize_readiness.py outputs/molmoact2/readiness.json --strict-exit-code",
     "collection_preflight": ".venv/bin/python molmoact2/check_collection_dataset.py --dataset-repo-id <hf_user>/<dataset> --output-json outputs/molmoact2/collection_preflight.json",
     "setup_brev": "cluster/brev/setup_brev_env.sh",
     "launch_when_unblocked": "cluster/brev/submit_finetune_brev.sh --dataset-repo-id <hf_user>/<dataset> --gpus 1 --time 24h --readiness-report outputs/molmoact2/brev_readiness.json --train-command '<official MolmoAct2 fine-tuning command>'",

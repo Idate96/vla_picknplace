@@ -36,6 +36,10 @@ Machine-readable readiness:
 .venv/bin/python molmoact2/check_finetune_readiness.py \
   --dataset-repo-id <hf_user>/<dataset> \
   --output-json outputs/molmoact2/readiness.json
+
+.venv/bin/python molmoact2/summarize_readiness.py \
+  outputs/molmoact2/readiness.json \
+  --strict-exit-code
 ```
 
 Collection preflight after a pilot recording:
