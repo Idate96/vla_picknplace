@@ -7,7 +7,7 @@
   "last_checked": "2026-05-08",
   "upstream": {
     "molmoact2_repo": "https://github.com/allenai/molmoact2",
-    "molmoact2_head": "c45fcbca4501339bc0b12e30a273c15bf4d56cf0",
+    "molmoact2_head": "d2e022b1c282c1f428d07d9abf61fdb1eaa0097a",
     "lerobot_repo": "https://github.com/allenai/lerobot",
     "lerobot_branch": "molmoact2-hf-inference",
     "lerobot_ref": "c123084cf840c00af5c0833832fc58e590412851",

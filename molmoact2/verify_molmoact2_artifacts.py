@@ -100,7 +100,7 @@ def check_brev_manifest() -> Check:
         and brev.get("workflow") == "ssh_rsync_uv"
         and brev.get("setup_script") == "cluster/brev/setup_brev_env.sh"
         and brev.get("submit_script") == "cluster/brev/submit_finetune_brev.sh"
-        and upstream.get("molmoact2_head") == "c45fcbca4501339bc0b12e30a273c15bf4d56cf0"
+        and upstream.get("molmoact2_head") == "d2e022b1c282c1f428d07d9abf61fdb1eaa0097a"
         and upstream.get("lerobot_ref") == "c123084cf840c00af5c0833832fc58e590412851"
         and "inference-only" in upstream.get("trainability", "")
         and diagnostic.get("dataset_repo_id") == "carmensc/record-test-screwdriver"

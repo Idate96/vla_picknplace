@@ -33,7 +33,7 @@ git status --short --branch
 ## main...origin/main
 
 git ls-remote https://github.com/allenai/molmoact2.git HEAD
-c45fcbca4501339bc0b12e30a273c15bf4d56cf0 HEAD
+d2e022b1c282c1f428d07d9abf61fdb1eaa0097a HEAD
 
 git ls-remote https://github.com/allenai/lerobot.git refs/heads/molmoact2-hf-inference
 c123084cf840c00af5c0833832fc58e590412851 refs/heads/molmoact2-hf-inference
