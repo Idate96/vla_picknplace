@@ -117,7 +117,7 @@ if [ "${RUN_IMPORT_CHECK}" -eq 1 ]; then
     .venv/bin/python - <<'PY'
 import importlib
 
-for module_name in ("datasets", "huggingface_hub", "lerobot.datasets", "torch", "transformers"):
+for module_name in ("datasets", "huggingface_hub", "lerobot.datasets", "mujoco", "torch", "transformers"):
     importlib.import_module(module_name)
 print("[setup] Import check passed.")
 PY

@@ -70,6 +70,17 @@ GPU inference:
 This is a public command-path smoke for the absolute 6D SO100/SO101 joint
 targets. It is not a physics/contact/task-success simulator.
 
+## MuJoCo SO101 Smoke
+
+```bash
+.venv/bin/python molmoact2/simulate_mujoco_so101.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/mujoco_so101_smoke.json
+```
+
+This uses the public RobotStudio SO101 MuJoCo model at a pinned commit. It
+steps arm physics only; it does not simulate the screwdriver task.
+
 ## Brev Access
 
 The default path reuses the Newton Brev SSH instance:

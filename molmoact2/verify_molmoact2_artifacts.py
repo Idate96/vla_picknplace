@@ -40,8 +40,25 @@ def check_requirements() -> Check:
     path = ROOT / "requirements.txt"
     if not path.exists():
         return Check(str(path), False, "missing")
-    deps = {line.strip().split("[", 1)[0] for line in path.read_text().splitlines() if line.strip()}
-    required = {"datasets", "huggingface_hub", "lerobot", "numpy", "pillow", "torch", "transformers"}
+    deps = set()
+    for line in path.read_text().splitlines():
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        name = raw.split("[", 1)[0]
+        for marker in ("==", ">=", "<=", "~=", " @ "):
+            name = name.split(marker, 1)[0]
+        deps.add(name.strip())
+    required = {
+        "datasets",
+        "huggingface_hub",
+        "lerobot",
+        "mujoco",
+        "numpy",
+        "pillow",
+        "torch",
+        "transformers",
+    }
     missing = sorted(required - deps)
     return Check(
         str(path),
@@ -115,6 +132,23 @@ def check_bash_syntax(paths: list[Path]) -> Check:
     )
     return Check(
         "bash -n Brev scripts",
+        proc.returncode == 0,
+        "passed" if proc.returncode == 0 else (proc.stderr or proc.stdout)[-500:],
+    )
+
+
+def check_python_imports() -> Check:
+    modules = ["datasets", "huggingface_hub", "lerobot.datasets", "mujoco", "torch", "transformers"]
+    script = "import importlib\n" + "\n".join(f"importlib.import_module({module!r})" for module in modules)
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return Check(
+        "Python dependency imports",
         proc.returncode == 0,
         "passed" if proc.returncode == 0 else (proc.stderr or proc.stdout)[-500:],
     )
@@ -279,6 +313,7 @@ def main() -> None:
         ROOT / "molmoact2/inspect_molmoact2.py",
         ROOT / "molmoact2/test_on_lerobot_frame.py",
         ROOT / "molmoact2/simulate_joint_control.py",
+        ROOT / "molmoact2/simulate_mujoco_so101.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
     ]
@@ -309,6 +344,7 @@ def main() -> None:
     checks.extend(exists(path) for path in bash_paths)
     checks.append(check_py_compile(script_paths))
     checks.append(check_bash_syntax(bash_paths))
+    checks.append(check_python_imports())
 
     checks.extend(
         [

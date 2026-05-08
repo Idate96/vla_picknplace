@@ -80,8 +80,20 @@ Public sim/control smoke:
 
 This exercises the returned absolute 6D joint-target horizon through a small
 SO100/SO101 joint-space follower simulation with per-step relative clipping. It
-does not prove screwdriver task success because this repo has no public
-SO100/SO101 physics/contact simulator.
+does not prove screwdriver task success because it has no physics/contact
+model; use the MuJoCo smoke below for arm physics.
+
+Public MuJoCo arm-physics smoke:
+
+```bash
+.venv/bin/python molmoact2/simulate_mujoco_so101.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/mujoco_so101_smoke.json
+```
+
+This downloads the pinned public RobotStudio SO101 MuJoCo assets and steps the
+arm physics. It still does not model the screwdriver object, task contacts,
+camera feedback, or task success.
 
 ## Brev
 

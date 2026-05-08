@@ -1,6 +1,7 @@
 datasets
 huggingface_hub
 lerobot[training] @ git+https://github.com/huggingface/lerobot.git@ce24063e
+mujoco==3.2.5
 numpy
 opencv-python
 pillow

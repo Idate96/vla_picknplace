@@ -68,6 +68,19 @@ This simulates the SO100/SO101 absolute joint-target command stream with
 per-step relative clipping. It does not model contacts, object motion, camera
 feedback, or task success.
 
+Run the optional public MuJoCo SO101 arm physics smoke:
+
+```bash
+.venv/bin/python molmoact2/simulate_mujoco_so101.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/mujoco_so101_smoke.json
+```
+
+This downloads the pinned RobotStudio SO101 MJCF/mesh assets under
+`outputs/molmoact2/so101_mujoco_assets/` and steps the arm physics. It still
+does not include a screwdriver object, camera feedback, or a task-success
+metric.
+
 ## Brev
 
 The canonical Brev path is under `cluster/brev/`:
