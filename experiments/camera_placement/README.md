@@ -1,7 +1,11 @@
-# Camera Placement Ablation
+# Archived Camera Placement Ablation
 
-This is a narrow sim experiment to choose one camera for the single-camera ACT
-policy. It is not the main ACT training run on the target pick-and-place data.
+This is a historical note for a narrow sim experiment that compared two
+single-camera views for an ACT policy. It is not the main ACT training run on
+the target pick-and-place data, and it is not part of the MolmoAct2 workflow.
+
+The original launch scripts depended on a private course simulator checkout and
+were removed from this repo. Keep this folder as result context only.
 
 ## Question
 
@@ -18,26 +22,23 @@ policy.
 
 ## Source Boundary
 
-The experiment depends on the HW3 MuJoCo source tree for the simulator and
-expert:
+The old experiment depended on private simulator and expert source files:
 
 ```text
-hw3/sim_env.py
-hw3/obstacle_expert.py
-scripts/export_expert_lerobot.py
-scripts/eval_lerobot_act.py
+sim_env.py
+obstacle_expert.py
+export_expert_lerobot.py
+eval_lerobot_act.py
 ```
 
-Those files are intentionally not vendored into this repo. This repo only keeps
-the camera-ablation protocol, cluster wrappers, and result summarizer.
+Those files are intentionally not vendored into this repo. Collaborators should
+not depend on this experiment for MolmoAct2, Pi0.5, SmolVLA, or current ACT
+collection.
 
 ## Camera Setup
 
-Inspected image pairs were generated locally at:
-
-```text
-/home/lorenzo/git/ethz-course-2026/hw3_imitation_learning/outputs/debug_setup/randomized_goal_camera_inspect/
-```
+Inspected image pairs were generated in the old private simulator checkout and
+are not committed here.
 
 Inspected reset poses:
 
@@ -118,39 +119,18 @@ The experiment was stopped after the `150000` checkpoint comparison. The
 there is no final `300000` audit for this run. At the stopping point,
 `top_wrist` was the stronger camera.
 
-## Euler Paths
+## Operational Status
 
-Default cluster paths used by the wrappers:
-
-```text
-/cluster/work/rsl/$USER/hw3_camera_ablation/src
-/cluster/work/rsl/$USER/hw3_camera_ablation/lerobot
-/cluster/scratch/$USER/hw3_camera_ablation/datasets_rand_goal_h6/<camera>
-/cluster/work/rsl/$USER/hw3_camera_ablation/outputs/rand_goal_h6/<camera>
-```
-
-## Launch
-
-Stage the HW3 source tree and LeRobot checkout under the paths above, then run:
-
-```bash
-sbatch -J act_rand_wrist experiments/camera_placement/euler/train_and_eval.sbatch top_wrist
-sbatch -J act_rand_angle experiments/camera_placement/euler/train_and_eval.sbatch angle
-```
-
-Benchmark an intermediate checkpoint:
-
-```bash
-sbatch -J eval100_wrist experiments/camera_placement/euler/eval_checkpoint.sbatch top_wrist 100000
-sbatch -J eval100_angle experiments/camera_placement/euler/eval_checkpoint.sbatch angle 100000
-```
+There is no supported launch path for this archived experiment in
+`vla_picknplace`. Use the current repo-local LeRobot ACT scripts for ACT work
+and the MolmoAct2 guides for the SO100/SO101 collection.
 
 Summarize available results:
 
 ```bash
 python experiments/camera_placement/summarize_results.py \
-  --dataset-root /cluster/scratch/$USER/hw3_camera_ablation/datasets_rand_goal_h6 \
-  --run-root /cluster/work/rsl/$USER/hw3_camera_ablation/outputs/rand_goal_h6 \
+  --dataset-root /path/to/archived/datasets \
+  --run-root /path/to/archived/runs \
   --checkpoint-step 100000
 ```
 

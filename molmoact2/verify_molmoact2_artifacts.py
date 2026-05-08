@@ -175,17 +175,34 @@ def check_brev_env_template() -> Check:
 
 
 def check_no_external_course_paths() -> Check:
-    scan_roots = [ROOT / "README.md", ROOT / "docs", ROOT / "molmoact2", ROOT / "cluster/brev"]
-    forbidden_fragments = ("ethz" + "-course-2026", "hw3" + "_imitation_learning/.venv")
+    proc = subprocess.run(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode == 0:
+        paths = [ROOT / line for line in proc.stdout.splitlines()]
+    else:
+        scan_roots = [ROOT / "README.md", ROOT / "docs", ROOT / "molmoact2", ROOT / "cluster"]
+        paths = []
+        for scan_root in scan_roots:
+            paths.extend([scan_root] if scan_root.is_file() else sorted(scan_root.rglob("*")))
+
+    forbidden_fragments = (
+        "ethz" + "-course-2026",
+        "hw3" + "_imitation_learning",
+        "hw3" + "_camera_ablation",
+    )
+    suffixes = {".md", ".py", ".json", ".sh", ".template", ".sbatch", ".args"}
     matches: list[str] = []
-    for scan_root in scan_roots:
-        paths = [scan_root] if scan_root.is_file() else sorted(scan_root.rglob("*"))
-        for path in paths:
-            if not path.is_file() or path.suffix not in {".md", ".py", ".json", ".sh", ".template"}:
-                continue
-            text = path.read_text(errors="ignore")
-            if any(fragment in text for fragment in forbidden_fragments):
-                matches.append(str(path.relative_to(ROOT)))
+    for path in paths:
+        if not path.is_file() or path.suffix not in suffixes:
+            continue
+        text = path.read_text(errors="ignore")
+        if any(fragment in text for fragment in forbidden_fragments):
+            matches.append(str(path.relative_to(ROOT)))
     return Check(
         "repo-local command paths",
         not matches,
