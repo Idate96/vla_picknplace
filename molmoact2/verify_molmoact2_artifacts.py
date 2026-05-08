@@ -80,8 +80,11 @@ def check_brev_manifest() -> Check:
     contract = data.get("target_dataset_contract", {})
     brev = data.get("brev", {})
     commands = data.get("commands", {})
+    upstream = data.get("upstream", {})
+    diagnostic = data.get("diagnostic_readiness", {})
     ok = (
         data.get("status") == "blocked"
+        and data.get("last_checked") == "2026-05-08"
         and model.get("repo_id") == "allenai/MolmoAct2-SO100_101"
         and model.get("norm_tag") == "so100_so101_molmoact2"
         and model.get("joint_names") == EXPECTED_JOINTS
@@ -94,8 +97,18 @@ def check_brev_manifest() -> Check:
         and brev.get("workflow") == "ssh_rsync_uv"
         and brev.get("setup_script") == "cluster/brev/setup_brev_env.sh"
         and brev.get("submit_script") == "cluster/brev/submit_finetune_brev.sh"
+        and upstream.get("molmoact2_head") == "c45fcbca4501339bc0b12e30a273c15bf4d56cf0"
+        and upstream.get("lerobot_ref") == "c123084cf840c00af5c0833832fc58e590412851"
+        and "inference-only" in upstream.get("trainability", "")
+        and diagnostic.get("dataset_repo_id") == "carmensc/record-test-screwdriver"
+        and diagnostic.get("ready") is False
+        and diagnostic.get("blockers") == ["dataset ranges", "upstream fine-tune code"]
         and "cluster/brev/setup_brev_env.sh" in commands.get("setup_brev", "")
         and "cluster/brev/submit_finetune_brev.sh" in commands.get("launch_when_unblocked", "")
+        and "--readiness-report" in commands.get("launch_when_unblocked", "")
+        and "check_finetune_readiness.py" in commands.get("readiness_json", "")
+        and "check_collection_dataset.py" in commands.get("collection_preflight", "")
+        and "--allow-blocked-dry-run" in commands.get("diagnostic_blocked_dry_run", "")
         and "--train-command" in commands.get("launch_when_unblocked", "")
     )
     return Check(

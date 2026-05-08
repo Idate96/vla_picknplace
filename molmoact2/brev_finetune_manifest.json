@@ -4,6 +4,15 @@
     "old Carmen diagnostic dataset has joint range/calibration mismatches",
     "upstream MolmoAct2 LeRobot wrapper is inference-only"
   ],
+  "last_checked": "2026-05-08",
+  "upstream": {
+    "molmoact2_repo": "https://github.com/allenai/molmoact2",
+    "molmoact2_head": "c45fcbca4501339bc0b12e30a273c15bf4d56cf0",
+    "lerobot_repo": "https://github.com/allenai/lerobot",
+    "lerobot_branch": "molmoact2-hf-inference",
+    "lerobot_ref": "c123084cf840c00af5c0833832fc58e590412851",
+    "trainability": "blocked: public MolmoAct2 LeRobot wrapper is inference-only"
+  },
   "model": {
     "repo_id": "allenai/MolmoAct2-SO100_101",
     "norm_tag": "so100_so101_molmoact2",
@@ -34,6 +43,15 @@
     "collection_guide": "docs/so100_vla_data_collection_guide.md",
     "status": "must be recollected before serious fine-tuning"
   },
+  "diagnostic_readiness": {
+    "dataset_repo_id": "carmensc/record-test-screwdriver",
+    "report_path": "outputs/molmoact2/test_brev_submit_readiness.json",
+    "ready": false,
+    "blockers": [
+      "dataset ranges",
+      "upstream fine-tune code"
+    ]
+  },
   "brev": {
     "instance_name": "mw-newton-dev",
     "token_env": "BREV_TOKEN",
@@ -48,7 +66,10 @@
   },
   "commands": {
     "readiness": ".venv/bin/python molmoact2/check_finetune_readiness.py --dataset-repo-id <hf_user>/<dataset>",
+    "readiness_json": ".venv/bin/python molmoact2/check_finetune_readiness.py --dataset-repo-id <hf_user>/<dataset> --output-json outputs/molmoact2/readiness.json",
+    "collection_preflight": ".venv/bin/python molmoact2/check_collection_dataset.py --dataset-repo-id <hf_user>/<dataset> --output-json outputs/molmoact2/collection_preflight.json",
     "setup_brev": "cluster/brev/setup_brev_env.sh",
-    "launch_when_unblocked": "cluster/brev/submit_finetune_brev.sh --dataset-repo-id <hf_user>/<dataset> --gpus 1 --time 24h --train-command '<official MolmoAct2 fine-tuning command>'"
+    "launch_when_unblocked": "cluster/brev/submit_finetune_brev.sh --dataset-repo-id <hf_user>/<dataset> --gpus 1 --time 24h --readiness-report outputs/molmoact2/brev_readiness.json --train-command '<official MolmoAct2 fine-tuning command>'",
+    "diagnostic_blocked_dry_run": "cluster/brev/submit_finetune_brev.sh --dataset-repo-id carmensc/record-test-screwdriver --dry-run --allow-blocked-dry-run --readiness-report outputs/molmoact2/test_brev_submit_readiness.json --train-command 'echo would train'"
   }
 }
