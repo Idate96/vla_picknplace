@@ -234,9 +234,11 @@ def main() -> None:
 
         if args.dry_run:
             horizon = np.repeat(state.reshape(1, -1), args.actions_per_inference, axis=0)
+            horizon_source = "dry_run_current_state"
         else:
             assert processor is not None and policy is not None and torch_dtype is not None
             horizon = predict_action_horizon(processor, policy, image, state, args, torch_dtype)
+            horizon_source = "molmoact2_predict_action"
 
         executed = []
         for target in horizon[: args.actions_per_inference]:
@@ -255,6 +257,7 @@ def main() -> None:
                 "rollout_index": rollout_index,
                 "state_before": state.astype(float).tolist(),
                 "image_stats": image_stats(image),
+                "horizon_source": horizon_source,
                 "horizon_shape": list(horizon.shape),
                 "first_target": horizon[0].astype(float).tolist(),
                 "executed_targets": executed,
@@ -291,6 +294,7 @@ def main() -> None:
         "norm_tag": NORM_TAG,
         "task": args.task,
         "dry_run": bool(args.dry_run),
+        "model_loaded": not bool(args.dry_run),
         "device": args.device,
         "dtype": args.dtype,
         "rollout_steps": args.rollout_steps,

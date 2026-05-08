@@ -442,8 +442,10 @@ def check_mujoco_rollout_dry_run() -> Check:
         ok = (
             result.get("simulator", {}).get("type") == "molmoact2_closed_loop_robotstudio_so101_mujoco"
             and result.get("dry_run") is True
+            and result.get("model_loaded") is False
             and result.get("rollout_steps") == 1
             and result.get("records", [{}])[0].get("horizon_shape") == [1, 6]
+            and result.get("records", [{}])[0].get("horizon_source") == "dry_run_current_state"
             and result.get("records", [{}])[0].get("image_stats", {}).get("std", 0) > 0
             and result.get("final_image_stats", {}).get("std", 0) > 0
             and len(result.get("final_state_lerobot", [])) == 6
