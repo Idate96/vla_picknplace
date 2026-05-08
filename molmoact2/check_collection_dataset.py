@@ -44,6 +44,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--skip-ranges", action="store_true")
     parser.add_argument("--skip-frame-check", action="store_true")
+    parser.add_argument("--skip-image-check", action="store_true")
+    parser.add_argument("--max-image-check-frames", type=int, default=3)
     parser.add_argument("--output-json", type=Path, default=None)
     return parser.parse_args()
 
@@ -133,6 +135,69 @@ def check_frame_table(
     return checks
 
 
+def image_to_array(image) -> np.ndarray:
+    if hasattr(image, "detach"):
+        array = image.detach().cpu().numpy()
+    else:
+        array = np.asarray(image)
+    if array.ndim != 3:
+        raise ValueError(f"expected rank-3 RGB image, got shape {list(array.shape)}")
+    if array.shape[0] in {1, 3, 4} and array.shape[-1] not in {1, 3, 4}:
+        array = np.moveaxis(array, 0, -1)
+    if array.shape[-1] < 3:
+        raise ValueError(f"expected RGB image with at least 3 channels, got shape {list(array.shape)}")
+    array = array[..., :3].astype(np.float32)
+    if array.max(initial=0) <= 1.0:
+        array = array * 255.0
+    return array
+
+
+def check_image_frames(
+    repo_id: str,
+    revision: str,
+    root: Path | None,
+    max_frames: int,
+) -> Check:
+    if max_frames <= 0:
+        return Check("image frames", "WARN", "image frame check disabled by max-image-check-frames=0")
+    try:
+        from lerobot.datasets import LeRobotDataset
+
+        dataset_kwargs = {"revision": revision}
+        if root is not None:
+            dataset_kwargs["root"] = root
+        dataset = LeRobotDataset(repo_id, **dataset_kwargs)
+        if FRONT_IMAGE_KEY not in dataset.meta.camera_keys:
+            return Check("image frames", "BLOCKED", f"missing {FRONT_IMAGE_KEY}; found {dataset.meta.camera_keys}")
+        if len(dataset) == 0:
+            return Check("image frames", "BLOCKED", "dataset has no frames")
+        indices = np.unique(np.linspace(0, len(dataset) - 1, min(max_frames, len(dataset)), dtype=int))
+        stats = []
+        shapes = []
+        for index in indices:
+            image = dataset[int(index)][FRONT_IMAGE_KEY]
+            array = image_to_array(image)
+            if not np.isfinite(array).all():
+                return Check("image frames", "BLOCKED", f"{FRONT_IMAGE_KEY}[{int(index)}] has non-finite pixels")
+            stats.append(float(array.std()))
+            shapes.append(list(array.shape))
+    except Exception as exc:
+        return Check("image frames", "BLOCKED", f"could not load sampled RGB frames: {exc}")
+
+    min_std = min(stats) if stats else 0.0
+    if min_std <= 1.0:
+        return Check(
+            "image frames",
+            "BLOCKED",
+            f"{FRONT_IMAGE_KEY} sampled frame is nearly blank; stds={[round(item, 2) for item in stats]}",
+        )
+    return Check(
+        "image frames",
+        "OK",
+        f"loaded {len(stats)} sampled RGB frames; shapes={shapes}; stds={[round(item, 2) for item in stats]}",
+    )
+
+
 def print_checks(checks: list[Check]) -> int:
     blockers = [check for check in checks if check.status == "BLOCKED"]
     for check in checks:
@@ -182,6 +247,15 @@ def main() -> None:
                 args.min_frames,
                 args.min_episodes,
                 args.max_frame_check_rows,
+            )
+        )
+    if dataset_check.status != "BLOCKED" and not args.skip_image_check:
+        checks.append(
+            check_image_frames(
+                args.dataset_repo_id,
+                args.dataset_revision,
+                args.dataset_root,
+                args.max_image_check_frames,
             )
         )
     if dataset_check.status != "BLOCKED" and not args.skip_ranges:

@@ -52,7 +52,8 @@ For the Carmen screwdriver collection, use one fixed 3D camera RGB stream as
 
 Use `check_collection_dataset.py` right after a pilot recording. It checks the
 SO100/SO101 collection contract without requiring Brev or upstream fine-tuning
-support.
+support, including loading sampled `observation.images.front` frames to catch
+missing or blank camera video early.
 
 Only run model inference on a GPU machine with enough memory:
 

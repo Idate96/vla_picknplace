@@ -266,8 +266,9 @@ For a local dataset mirror, add:
 ```
 
 This catches the common failures before Brev: wrong camera key, wrong fps,
-wrong joint order, non-finite state/action rows, too few frames/episodes, and
-joint ranges that look incompatible with `MolmoAct2-SO100_101`.
+RGB frames that cannot be loaded or are nearly blank, wrong joint order,
+non-finite state/action rows, too few frames/episodes, and joint ranges that
+look incompatible with `MolmoAct2-SO100_101`.
 
 Episode definition:
 

@@ -503,6 +503,7 @@ def check_collection_preflight_metadata_only() -> Check:
                 "carmensc/record-test-screwdriver",
                 "--skip-ranges",
                 "--skip-frame-check",
+                "--skip-image-check",
                 "--output-json",
                 str(report_path),
             ],
@@ -554,13 +555,16 @@ def check_old_carmen_dataset_range_blocked() -> Check:
         except Exception:
             report = {}
     output = proc.stdout + "\n" + proc.stderr
+    checks_by_name = {item.get("name"): item for item in report.get("checks", [])}
     blockers = report.get("blockers", [])
     range_blocker = next((item for item in blockers if item.get("name") == "dataset ranges"), {})
     detail = range_blocker.get("detail", "")
+    image_check = checks_by_name.get("image frames", {})
     ok = (
         proc.returncode != 0
         and report.get("ready") is False
         and report.get("status") == "blocked"
+        and image_check.get("status") == "OK"
         and range_blocker
         and "shoulder_lift" in detail
         and "MolmoAct2 collection handoff" in output
@@ -568,7 +572,7 @@ def check_old_carmen_dataset_range_blocked() -> Check:
     return Check(
         "old Carmen full preflight blocks on ranges",
         ok,
-        "full preflight rejects the old screwdriver dataset on joint range/calibration mismatch"
+        "full preflight loads front RGB frames, then rejects the old screwdriver dataset on joint range/calibration mismatch"
         if ok
         else f"unexpected output: {output[-500:]}",
     )
