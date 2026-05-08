@@ -123,6 +123,19 @@ Verified on 2026-05-08 against `mw-newton-dev`: the setup script synced to
 `/home/nvidia/code/vla_picknplace`, installed the remote Python environment,
 passed the import check, and saw 8 A100-SXM4-80GB GPUs.
 
+Remote repo verifier also passed on 2026-05-08:
+
+```bash
+ssh mw-newton-dev \
+  'cd /home/nvidia/code/vla_picknplace && .venv/bin/python molmoact2/verify_molmoact2_artifacts.py'
+```
+
+That validates the Brev-side Python environment, script syntax, dependency
+imports, and MuJoCo dry-run smoke. The verifier may report that the Brev SSH
+self-check is not reachable when run inside the VM; that is not a fine-tune
+blocker because local submission uses the `mw-newton-dev` SSH alias from this
+workstation.
+
 Readiness check:
 
 ```bash
