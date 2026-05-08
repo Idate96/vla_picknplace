@@ -210,20 +210,28 @@ def template_env(name: str) -> str | None:
 def check_readiness_blocked() -> Check:
     env = os.environ.copy()
     env.setdefault("BREV_INSTANCE_NAME", template_env("BREV_INSTANCE_NAME") or "")
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "molmoact2/check_finetune_readiness.py",
-            "--dataset-repo-id",
-            "carmensc/record-test-screwdriver",
-            "--skip-ranges",
-        ],
-        cwd=ROOT,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        report_path = Path(tmp) / "readiness.json"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/check_finetune_readiness.py",
+                "--dataset-repo-id",
+                "carmensc/record-test-screwdriver",
+                "--skip-ranges",
+                "--output-json",
+                str(report_path),
+            ],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        try:
+            report = json.loads(report_path.read_text())
+        except Exception:
+            report = {}
     output = proc.stdout + "\n" + proc.stderr
     upstream_accounted_for = (
         "BLOCKED upstream fine-tune code" in output
@@ -235,6 +243,9 @@ def check_readiness_blocked() -> Check:
         and "Not ready for Brev fine-tuning." in output
         and upstream_accounted_for
         and brev_accounted_for
+        and report.get("ready") is False
+        and report.get("status") == "blocked"
+        and any(item.get("name") == "upstream fine-tune code" for item in report.get("blockers", []))
     )
     if expected and "OK      brev:" in output:
         detail = "uses configured Newton Brev instance; blocks on upstream fine-tune support"

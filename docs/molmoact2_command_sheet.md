@@ -30,6 +30,14 @@ Replace `<hf_user>/<dataset>` with the recollected Carmen screwdriver dataset.
   --dataset-repo-id <hf_user>/<dataset>
 ```
 
+Machine-readable readiness:
+
+```bash
+.venv/bin/python molmoact2/check_finetune_readiness.py \
+  --dataset-repo-id <hf_user>/<dataset> \
+  --output-json outputs/molmoact2/readiness.json
+```
+
 For a local LeRobot dataset mirror:
 
 ```bash

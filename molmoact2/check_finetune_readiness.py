@@ -60,6 +60,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip full dataset loading and only inspect LeRobot metadata.",
     )
+    parser.add_argument(
+        "--output-json",
+        type=Path,
+        default=None,
+        help="Optional path for a machine-readable readiness report.",
+    )
     return parser.parse_args()
 
 
@@ -342,6 +348,31 @@ def print_checks(checks: list[Check]) -> int:
     return 0
 
 
+def write_json_report(path: Path, checks: list[Check]) -> None:
+    blockers = [check for check in checks if check.status == "BLOCKED"]
+    report = {
+        "ready": not blockers,
+        "status": "ready" if not blockers else "blocked",
+        "blockers": [
+            {
+                "name": check.name,
+                "detail": check.detail,
+            }
+            for check in blockers
+        ],
+        "checks": [
+            {
+                "name": check.name,
+                "status": check.status,
+                "detail": check.detail,
+            }
+            for check in checks
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(report, indent=2) + "\n")
+
+
 def main() -> None:
     args = parse_args()
     checks: list[Check] = []
@@ -352,6 +383,8 @@ def main() -> None:
         checks.append(compare_ranges(args.dataset_repo_id, args.dataset_revision, args.dataset_root))
     checks.append(check_brev())
     checks.append(check_upstream_finetune_code())
+    if args.output_json is not None:
+        write_json_report(args.output_json, checks)
     raise SystemExit(print_checks(checks))
 
 

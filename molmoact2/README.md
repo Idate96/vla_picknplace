@@ -39,6 +39,10 @@ For the Carmen screwdriver collection, use one fixed 3D camera RGB stream as
 .venv/bin/python molmoact2/check_finetune_readiness.py \
   --dataset-repo-id <hf_user>/<dataset>
 
+.venv/bin/python molmoact2/check_finetune_readiness.py \
+  --dataset-repo-id <hf_user>/<dataset> \
+  --output-json outputs/molmoact2/readiness.json
+
 .venv/bin/python molmoact2/verify_molmoact2_artifacts.py
 ```
 
