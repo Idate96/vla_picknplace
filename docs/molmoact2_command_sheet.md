@@ -52,6 +52,9 @@ Collection preflight after a pilot recording:
 .venv/bin/python molmoact2/check_collection_dataset.py \
   --dataset-repo-id <hf_user>/<dataset> \
   --output-json outputs/molmoact2/collection_preflight.json
+
+.venv/bin/python molmoact2/run_dataset_gate.py \
+  --dataset-repo-id <hf_user>/<dataset>
 ```
 
 For a local LeRobot dataset mirror:

@@ -55,6 +55,9 @@ For the Carmen screwdriver collection, use one fixed 3D camera RGB stream as
   --dataset-repo-id <hf_user>/<dataset> \
   --output-json outputs/molmoact2/collection_preflight.json
 
+.venv/bin/python molmoact2/run_dataset_gate.py \
+  --dataset-repo-id <hf_user>/<dataset>
+
 .venv/bin/python molmoact2/verify_molmoact2_artifacts.py
 ```
 
@@ -62,6 +65,11 @@ Use `check_collection_dataset.py` right after a pilot recording. It checks the
 SO100/SO101 collection contract without requiring Brev or upstream fine-tuning
 support, including loading sampled `observation.images.front` frames to catch
 missing or blank camera video early.
+
+Use `run_dataset_gate.py` after a pilot upload or local export. It runs both
+the collection preflight and the fine-tune readiness check, writes JSON under
+`outputs/molmoact2/dataset_gate/`, prints blocker summaries, and exits nonzero
+until both gates pass.
 
 Only run model inference on a GPU machine with enough memory:
 

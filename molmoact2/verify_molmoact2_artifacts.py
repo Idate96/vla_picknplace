@@ -126,6 +126,7 @@ def check_brev_manifest() -> Check:
         and "summarize_readiness.py" in commands.get("readiness_summary", "")
         and "--strict-exit-code" in commands.get("readiness_summary", "")
         and "check_collection_dataset.py" in commands.get("collection_preflight", "")
+        and "run_dataset_gate.py" in commands.get("dataset_gate", "")
         and "--allow-blocked-dry-run" in commands.get("diagnostic_blocked_dry_run", "")
         and "--train-command" in commands.get("launch_when_unblocked", "")
     )
@@ -884,6 +885,48 @@ def check_old_carmen_dataset_range_blocked() -> Check:
     )
 
 
+def check_dataset_gate_smoke() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        output_dir = Path(tmp) / "gate"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/run_dataset_gate.py",
+                "--dataset-repo-id",
+                "carmensc/record-test-screwdriver",
+                "--output-dir",
+                str(output_dir),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+        summary_path = output_dir / "summary.json"
+        try:
+            summary = json.loads(summary_path.read_text())
+        except Exception:
+            summary = {}
+    output = proc.stdout + "\n" + proc.stderr
+    ok = (
+        proc.returncode == 1
+        and summary.get("dataset_repo_id") == "carmensc/record-test-screwdriver"
+        and summary.get("collection_preflight", {}).get("status") == "blocked"
+        and summary.get("fine_tune_readiness", {}).get("status") == "blocked"
+        and "Brev launch: NO" in output
+        and "dataset ranges" in output
+        and "upstream fine-tune code" in output
+    )
+    return Check(
+        "dataset gate smoke",
+        ok,
+        "combined dataset gate runs collection preflight, readiness, summaries, and blocks old Carmen"
+        if ok
+        else f"unexpected output: {output[-800:]}",
+    )
+
+
 def main() -> None:
     checks: list[Check] = []
     script_paths = [
@@ -893,6 +936,7 @@ def main() -> None:
         ROOT / "molmoact2/simulate_mujoco_so101.py",
         ROOT / "molmoact2/rollout_mujoco_so101.py",
         ROOT / "molmoact2/summarize_readiness.py",
+        ROOT / "molmoact2/run_dataset_gate.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
         ROOT / "molmoact2/check_collection_dataset.py",
@@ -939,6 +983,7 @@ def main() -> None:
             check_blocked_brev_dry_run_guard(),
             check_collection_preflight_metadata_only(),
             check_old_carmen_dataset_range_blocked(),
+            check_dataset_gate_smoke(),
         ]
     )
 
