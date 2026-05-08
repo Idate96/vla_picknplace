@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -214,11 +215,70 @@ def check_readiness_blocked() -> Check:
     )
 
 
+def check_joint_control_smoke() -> Check:
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        model_output = tmpdir / "molmo_one_frame.json"
+        sim_output = tmpdir / "joint_sim.json"
+        model_output.write_text(
+            json.dumps(
+                {
+                    "model": "allenai/MolmoAct2-SO100_101",
+                    "norm_tag": "so100_so101_molmoact2",
+                    "dataset_repo_id": "synthetic/smoke",
+                    "episode": 0,
+                    "frame": 0,
+                    "task": "pickup screwdriver",
+                    "state": [0, 50, 50, 20, 0, 10],
+                    "action_horizon": [
+                        [1, 55, 52, 21, -1, 20],
+                        [2, 60, 54, 22, -2, 30],
+                    ],
+                }
+            )
+        )
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "molmoact2/simulate_joint_control.py",
+                "--model-output",
+                str(model_output),
+                "--skip-model-bounds",
+                "--output",
+                str(sim_output),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            return Check("joint-space sim control smoke", False, (proc.stderr or proc.stdout)[-500:])
+        try:
+            result = json.loads(sim_output.read_text())
+        except Exception as exc:
+            return Check("joint-space sim control smoke", False, f"invalid output json: {exc}")
+        ok = (
+            result.get("simulator", {}).get("type") == "joint_space_absolute_target"
+            and result.get("horizon_steps") == 2
+            and len(result.get("sent_targets", [])) == 2
+            and len(result.get("simulated_states", [])) == 3
+        )
+        return Check(
+            "joint-space sim control smoke",
+            ok,
+            "simulates absolute 6D joint-target commands"
+            if ok
+            else f"unexpected output: {result}",
+        )
+
+
 def main() -> None:
     checks: list[Check] = []
     script_paths = [
         ROOT / "molmoact2/inspect_molmoact2.py",
         ROOT / "molmoact2/test_on_lerobot_frame.py",
+        ROOT / "molmoact2/simulate_joint_control.py",
         ROOT / "molmoact2/verify_molmoact2_artifacts.py",
         ROOT / "molmoact2/check_finetune_readiness.py",
     ]
@@ -253,6 +313,7 @@ def main() -> None:
     checks.extend(
         [
             check_readiness_blocked(),
+            check_joint_control_smoke(),
         ]
     )
 

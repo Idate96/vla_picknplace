@@ -164,11 +164,14 @@ def main() -> None:
         )
 
     actions = out.actions.detach().cpu().numpy()
+    action_horizon = actions[0] if actions.ndim == 3 and actions.shape[0] == 1 else actions
     print(f"Actions shape: {actions.shape}")
-    print("First action:")
-    print(np.array2string(actions[0], precision=3, suppress_small=True))
+    print("First target:")
+    print(np.array2string(action_horizon[0], precision=3, suppress_small=True))
     summary["actions_shape"] = list(actions.shape)
-    summary["first_action"] = actions[0].astype(float).tolist()
+    summary["action_horizon"] = action_horizon.astype(float).tolist()
+    summary["first_target"] = action_horizon[0].astype(float).tolist()
+    summary["first_action"] = action_horizon.astype(float).tolist()
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(summary, indent=2))

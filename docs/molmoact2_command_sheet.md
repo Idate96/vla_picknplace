@@ -54,17 +54,37 @@ GPU inference:
 .venv/bin/python molmoact2/test_on_lerobot_frame.py \
   --dataset-repo-id <hf_user>/<dataset> \
   --run-model \
+  --output outputs/molmoact2/one_frame_inference.json \
   --device cuda \
   --dtype bfloat16
 ```
 
-## Brev Login
+## Joint-Space Sim Smoke
+
+```bash
+.venv/bin/python molmoact2/simulate_joint_control.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/joint_control_smoke.json
+```
+
+This is a public command-path smoke for the absolute 6D SO100/SO101 joint
+targets. It is not a physics/contact/task-success simulator.
+
+## Brev Access
+
+The default path reuses the Newton Brev SSH instance:
+
+```bash
+ssh mw-newton-dev "hostname && nvidia-smi -L"
+```
+
+If that SSH alias works, no separate Brev CLI login is needed for this repo.
+Use `brev login` only when the SSH alias is missing or stale:
 
 ```bash
 brev login --auth nvidia --skip-browser
 brev refresh
 brev ls --all
-ssh <instance-name> "hostname && nvidia-smi -L"
 ```
 
 Token path:

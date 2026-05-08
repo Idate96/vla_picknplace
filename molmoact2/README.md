@@ -48,12 +48,25 @@ Only run model inference on a GPU machine with enough memory:
 .venv/bin/python molmoact2/test_on_lerobot_frame.py \
   --dataset-repo-id <hf_user>/<dataset> \
   --run-model \
+  --output outputs/molmoact2/one_frame_inference.json \
   --device cuda \
   --dtype bfloat16
 ```
 
 Treat returned actions as offline diagnostics until calibration and action
 limits are checked.
+
+Run the repo-local command-path sim smoke on that output:
+
+```bash
+.venv/bin/python molmoact2/simulate_joint_control.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/joint_control_smoke.json
+```
+
+This simulates the SO100/SO101 absolute joint-target command stream with
+per-step relative clipping. It does not model contacts, object motion, camera
+feedback, or task success.
 
 ## Brev
 

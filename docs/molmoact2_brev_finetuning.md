@@ -1,7 +1,6 @@
 # MolmoAct2 Brev Fine-Tuning Runbook
 
-Status: blocked until Brev login and trainable MolmoAct2 fine-tuning code are
-available.
+Status: blocked until trainable MolmoAct2 fine-tuning code is available.
 
 Machine-readable handoff:
 
@@ -18,8 +17,9 @@ cluster/brev/setup_brev_env.sh
 cluster/brev/submit_finetune_brev.sh
 ```
 
-Use Brev CLI for auth and SSH metadata, then use `ssh`/`rsync`/remote `uv`.
-The actual VM setup/launch path mirrors Newton and lives in `cluster/brev/`.
+Use the existing Newton Brev SSH alias when available, then use
+`ssh`/`rsync`/remote `uv`. The actual VM setup/launch path mirrors Newton and
+lives in `cluster/brev/`.
 
 The top-level `allenai/molmoact2` repository includes an Ai2 LeRobot submodule
 branch, `allenai/lerobot@molmoact2-hf-inference`. That branch does contain:
@@ -49,13 +49,13 @@ verified.
 ## Preconditions
 
 ```text
-brev login
+ssh mw-newton-dev works, or Brev CLI login can refresh that SSH alias
 HF_TOKEN with read/write access
 recollected LeRobot v3 SO100/SO101 dataset
 trainable MolmoAct2 fine-tuning script, or approved adapted LeRobot recipe
 ```
 
-Auth options checked:
+Only use Brev CLI login if the existing SSH alias is unavailable:
 
 ```bash
 brev login --skip-browser
@@ -63,8 +63,8 @@ brev login --token <brev_or_nvidia_auth_token>
 ```
 
 `brev login --token ...` is the noninteractive path if a token is available.
-Clearing Brev auth alone is not enough: the submit script still runs the
-readiness gate before launch.
+Clearing Brev auth is not the blocker when `ssh mw-newton-dev` works. The
+submit script still runs the readiness gate before launch.
 
 The target dataset should follow:
 

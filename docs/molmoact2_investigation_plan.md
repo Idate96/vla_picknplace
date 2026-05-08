@@ -65,9 +65,23 @@ GPU inference is diagnostic only:
 .venv/bin/python molmoact2/test_on_lerobot_frame.py \
   --dataset-repo-id <hf_user>/<dataset> \
   --run-model \
+  --output outputs/molmoact2/one_frame_inference.json \
   --device cuda \
   --dtype bfloat16
 ```
+
+Public sim/control smoke:
+
+```bash
+.venv/bin/python molmoact2/simulate_joint_control.py \
+  --model-output outputs/molmoact2/one_frame_inference.json \
+  --output outputs/molmoact2/joint_control_smoke.json
+```
+
+This exercises the returned absolute 6D joint-target horizon through a small
+SO100/SO101 joint-space follower simulation with per-step relative clipping. It
+does not prove screwdriver task success because this repo has no public
+SO100/SO101 physics/contact simulator.
 
 ## Brev
 
