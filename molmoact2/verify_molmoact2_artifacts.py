@@ -355,12 +355,14 @@ def check_mujoco_rollout_dry_run() -> Check:
             and result.get("dry_run") is True
             and result.get("rollout_steps") == 1
             and result.get("records", [{}])[0].get("horizon_shape") == [1, 6]
+            and result.get("records", [{}])[0].get("image_stats", {}).get("std", 0) > 0
+            and result.get("final_image_stats", {}).get("std", 0) > 0
             and len(result.get("final_state_lerobot", [])) == 6
         )
         return Check(
             "MuJoCo closed-loop dry-run smoke",
             ok,
-            "renders and steps the public SO101 MuJoCo scene without loading MolmoAct2"
+            "renders nonblank camera frames and steps the public SO101 MuJoCo scene without loading MolmoAct2"
             if ok
             else f"unexpected output: {result}",
         )

@@ -145,6 +145,16 @@ def render_image(renderer, data, camera) -> Image.Image:
     return Image.fromarray(rgb)
 
 
+def image_stats(image: Image.Image) -> dict:
+    array = np.asarray(image, dtype=np.float32)
+    return {
+        "mean": float(array.mean()),
+        "std": float(array.std()),
+        "min": int(array.min()),
+        "max": int(array.max()),
+    }
+
+
 def predict_action_horizon(processor, model, image: Image.Image, state: np.ndarray, args, torch_dtype) -> np.ndarray:
     with torch.inference_mode(), autocast_context(args.device, torch_dtype):
         out = model.predict_action(
@@ -244,6 +254,7 @@ def main() -> None:
             {
                 "rollout_index": rollout_index,
                 "state_before": state.astype(float).tolist(),
+                "image_stats": image_stats(image),
                 "horizon_shape": list(horizon.shape),
                 "first_target": horizon[0].astype(float).tolist(),
                 "executed_targets": executed,
@@ -291,6 +302,7 @@ def main() -> None:
         "screwdriver_pos_xyz": screwdriver_pos.astype(float).tolist(),
         "screwdriver_target_xy_dist": screwdriver_target_xy_dist,
         "clipped_control_count": int(clipped_controls),
+        "final_image_stats": image_stats(final_image),
         "records": records,
     }
 
