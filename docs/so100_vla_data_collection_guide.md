@@ -454,7 +454,7 @@ lerobot-teleoperate \
 After the first 2-3 episodes:
 
 ```bash
-/home/lorenzo/git/ethz-course-2026/hw3_imitation_learning/.venv/bin/python \
+.venv/bin/python \
   molmoact2/inspect_molmoact2.py \
   --dataset-repo-id <hf_user>/carmen_screwdriver_so100_vla
 ```

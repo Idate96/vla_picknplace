@@ -1,6 +1,8 @@
 datasets
 huggingface_hub
+lerobot[training] @ git+https://github.com/huggingface/lerobot.git@ce24063e
 numpy
 opencv-python
 pillow
 torch
+transformers
