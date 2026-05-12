@@ -24,6 +24,16 @@ outputs/playground/record-test-screwdriver/*_summary.json
 
 Those outputs are intentionally ignored by git.
 
+## Bowl Color-Swap Augmentation
+
+```bash
+.venv/bin/python data_processing/bowl_color_swap.py \
+    --video /path/to/file-000.mp4 --out-dir /tmp/bowl_aug \
+    --all-swaps --sam3 --dataset rslxcvg/banana_blue --episode 0
+```
+
+Needs `huggingface-cli login` (SAM3 is gated). Writes one mp4 + png per swap.
+
 ## Why Not `datasets.load_dataset` Alone?
 
 `datasets.load_dataset("carmensc/record-test-screwdriver")` loads the parquet table with action, state, timestamps, and episode indices. The camera frames live in LeRobot video sidecars, so use `LeRobotDataset` when you need synchronized images for visualization or ACT training.
