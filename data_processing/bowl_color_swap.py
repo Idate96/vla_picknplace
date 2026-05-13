@@ -42,6 +42,13 @@ HSV_RANGES = {
     "green": [((40,  60, 40), (85,  255, 255))],
     "blue":  [((95,  80, 40), (130, 255, 255))],
 }
+BOWL_GEOMETRY_HSV_RANGES = {
+    "red":   [((0,   35, 40), (12,  255, 255)),
+              ((168, 35, 40), (180, 255, 255))],
+    "green": [((35,  25, 35), (90,  255, 255))],
+    "blue":  [((85,  25, 35), (135, 255, 255))],
+}
+BANANA_HSV_RANGES = [((16, 50, 50), (38, 255, 255))]
 
 COLORS = ("red", "green", "blue")
 
@@ -75,14 +82,111 @@ def color_mask(hsv, ranges):
     return m
 
 
+def color_gate_mask(hsv, ranges):
+    """HSV safety gate for static masks. Do not close/fill holes here: holes
+    are often banana, gripper, or arm pixels inside the bowl region."""
+    m = np.zeros(hsv.shape[:2], dtype=np.uint8)
+    for lo, hi in ranges:
+        m |= cv2.inRange(hsv, np.array(lo), np.array(hi))
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    return cv2.dilate(m, np.ones((3, 3), np.uint8))
+
+
+def banana_mask_for_frame(frame_bgr, dilation=3):
+    """Conservative mask for the yellow banana.
+
+    The banana should remain visually tied to the physical object, even when
+    bowl colors and global image statistics are augmented. Keep this mask
+    tight enough not to preserve bowl pixels, then dilate slightly to cover
+    compressed edges and specular highlights.
+    """
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+    m = np.zeros(hsv.shape[:2], dtype=np.uint8)
+    for lo, hi in BANANA_HSV_RANGES:
+        m |= cv2.inRange(hsv, np.array(lo), np.array(hi))
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(m, 8)
+    keep = np.zeros_like(m)
+    for idx in range(1, n):
+        area = stats[idx, cv2.CC_STAT_AREA]
+        if 12 <= area <= 5000:
+            component = (labels == idx).astype(np.uint8)
+            ys, xs = np.where(component > 0)
+            if len(xs) < 3:
+                keep[component > 0] = 255
+                continue
+            points = np.column_stack([xs, ys]).astype(np.int32)
+            hull = cv2.convexHull(points)
+            cv2.fillPoly(keep, [hull], 255)
+
+    if keep.any():
+        m = keep
+    dilation = max(1, int(dilation))
+    return cv2.dilate(m, np.ones((dilation, dilation), np.uint8)).astype(bool)
+
+
+def stabilize_banana_color(frame_bgr, banana_mask):
+    """Remove bowl-color casts from preserved banana pixels.
+
+    A banana sitting in a blue/red/green bowl can pick up reflected bowl color.
+    If those pixels are restored verbatim after the bowl swap, the banana looks
+    partially recolored. Keep the source luminance/saturation but move
+    non-yellow banana-mask pixels back to the banana's measured yellow hue.
+    """
+    if banana_mask is None or not banana_mask.any():
+        return frame_bgr
+
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV).astype(np.int16)
+    banana_h = hsv[..., 0][banana_mask]
+    banana_s = hsv[..., 1][banana_mask]
+    yellow_core = (
+        (banana_h >= BANANA_HSV_RANGES[0][0][0])
+        & (banana_h <= BANANA_HSV_RANGES[0][1][0])
+        & (banana_s >= 50)
+    )
+    if yellow_core.any():
+        target_h = int(np.median(banana_h[yellow_core]))
+    else:
+        target_h = 26
+
+    h = hsv[..., 0]
+    s = hsv[..., 1]
+    b, g, r = cv2.split(frame_bgr)
+    blueish = (b.astype(np.int16) >= r.astype(np.int16) + 10) & (
+        b.astype(np.int16) >= g.astype(np.int16) - 10
+    )
+    not_yellow = (h < 14) | (h > 45)
+    fix = banana_mask & (not_yellow | blueish)
+    if not fix.any():
+        return frame_bgr
+
+    hsv[..., 0][fix] = target_h
+    hsv[..., 1][fix] = np.maximum(s[fix], 35)
+    return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+
+
 def bowl_region_from_mask(mask_u8):
     """Largest connected blob -> convex hull, filled. Used to get a clean
     bowl-shaped region from frame 0 where bowls are unoccluded. Bowls are
     roughly circular so the hull approximates the outline well."""
+    h, w = mask_u8.shape[:2]
     n, labels, stats, _ = cv2.connectedComponentsWithStats(mask_u8, 8)
     if n <= 1:
         return mask_u8
-    largest = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    candidates = []
+    for idx in range(1, n):
+        x = stats[idx, cv2.CC_STAT_LEFT]
+        y = stats[idx, cv2.CC_STAT_TOP]
+        bw = stats[idx, cv2.CC_STAT_WIDTH]
+        bh = stats[idx, cv2.CC_STAT_HEIGHT]
+        touches_edge = x <= 1 or y <= 1 or x + bw >= w - 1 or y + bh >= h - 1
+        if not touches_edge:
+            candidates.append(idx)
+    if not candidates:
+        candidates = list(range(1, n))
+    largest = max(candidates, key=lambda idx: stats[idx, cv2.CC_STAT_AREA])
     blob = (labels == largest).astype(np.uint8) * 255
     ys, xs = np.where(blob > 0)
     if len(xs) == 0:
@@ -126,30 +230,15 @@ def save_mask_viz(frame, masks, path):
 
 
 def build_static_masks(video_path, sat_boost, ref_idx, viz_path=None):
-    """Compute per-bowl masks once, from a reference frame: HSV threshold
-    plus a small dilation to recover anti-aliased rim pixels. No hole
-    filling, no convex hull -- the mask is exactly what the HSV threshold
-    catches. Holes from specular highlights are intentional (they stay
-    bright in the output, like real plastic). Reused for every frame; apply
-    `apply_arm_exclusion` per frame to drop dark arm pixels."""
+    """Compute per-bowl masks once, from a reference frame. The static mask is
+    only a geometry prior; every frame is still gated by source-bowl color."""
     cap = cv2.VideoCapture(str(video_path))
     cap.set(cv2.CAP_PROP_POS_FRAMES, int(ref_idx))
     ok, frame = cap.read()
     cap.release()
     if not ok:
         raise SystemExit(f"could not read reference frame {ref_idx} from {video_path}")
-    if sat_boost > 1.0:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV).astype(np.int16)
-        hsv[..., 1] = np.clip(hsv[..., 1] * sat_boost, 0, 255)
-        hsv = hsv.astype(np.uint8)
-    else:
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    kernel = np.ones((3, 3), np.uint8)
-    out = {}
-    for name, ranges in HSV_RANGES.items():
-        m = color_mask(hsv, ranges)
-        m = cv2.dilate(m, kernel)
-        out[name] = m.astype(bool)
+    out = static_masks_from_frame(frame, sat_boost)
     if viz_path is not None:
         save_mask_viz(frame, out, viz_path)
         print(f"saved static-mask viz to {viz_path}")
@@ -330,22 +419,96 @@ def apply_arm_exclusion(frame_bgr, static_masks, v_threshold):
     return {name: m & not_arm for name, m in static_masks.items()}
 
 
-def apply_color_filter(frame_bgr, static_masks):
+def hsv_for_masks(frame_bgr, sat_boost=1.0):
+    if sat_boost <= 1.0:
+        return cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV).astype(np.int16)
+    hsv[..., 1] = np.clip(hsv[..., 1] * sat_boost, 0, 255)
+    return hsv.astype(np.uint8)
+
+
+def static_masks_from_frame(frame_bgr, sat_boost=1.0):
+    return static_masks_from_frames([frame_bgr], sat_boost)
+
+
+def static_masks_from_frames(frames_bgr, sat_boost=1.0):
+    frames_bgr = list(frames_bgr)
+    if not frames_bgr:
+        raise ValueError("static_masks_from_frames needs at least one frame")
+    h, w = frames_bgr[0].shape[:2]
+    unions = {
+        name: np.zeros((h, w), dtype=np.uint8)
+        for name in BOWL_GEOMETRY_HSV_RANGES
+    }
+    for frame_bgr in frames_bgr:
+        hsv = hsv_for_masks(frame_bgr, sat_boost)
+        for name, ranges in BOWL_GEOMETRY_HSV_RANGES.items():
+            unions[name] |= color_mask(hsv, ranges)
+
+    kernel = np.ones((3, 3), np.uint8)
+    out = {}
+    for name, m in unions.items():
+        m = bowl_region_from_mask(m)
+        m = cv2.dilate(m, kernel)
+        out[name] = m.astype(bool)
+    return out
+
+
+def apply_color_filter(frame_bgr, static_masks, sat_boost=1.0):
     """Per frame, restrict each static mask to pixels currently matching
     the bowl's expected HSV color range. Excludes anything that passes
     over the bowl region but isn't actually a bowl pixel: the dark arm,
     a yellow banana, the gripper, fingers, etc."""
-    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
-    kernel = np.ones((3, 3), np.uint8)
+    hsv = hsv_for_masks(frame_bgr, sat_boost)
     out = {}
     for name, m in static_masks.items():
         ranges = HSV_RANGES.get(name)
         if ranges is None:
             out[name] = m
             continue
-        cm = color_mask(hsv, ranges)
-        cm = cv2.dilate(cm, kernel)               # keep anti-aliased rim
+        cm = color_gate_mask(hsv, ranges)
         out[name] = m & cm.astype(bool)
+    return out
+
+
+def protected_pixels_for_frame(frame_bgr, v_threshold, banana_mask=None):
+    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+    protected = np.zeros(hsv.shape[:2], dtype=bool)
+    if v_threshold is not None:
+        protected |= hsv[..., 2] <= v_threshold
+    if banana_mask is None:
+        banana_mask = banana_mask_for_frame(frame_bgr, dilation=3)
+    protected |= banana_mask
+    return protected
+
+
+def filter_static_masks(frame_bgr, static_masks, v_threshold, sat_boost=1.0,
+                        banana_mask=None):
+    """Return the visible bowl regions to recolor.
+
+    The current frame's HSV color is used only as evidence that the static
+    region still contains that bowl. Recoloring only the high-confidence HSV
+    seed leaves shiny or pale bowl interiors in the original color, producing
+    visibly mixed bowls. Once there is enough source-color evidence, recolor
+    the whole static bowl region minus protected banana/dark occluder pixels.
+    """
+    hsv = hsv_for_masks(frame_bgr, sat_boost)
+    protected = protected_pixels_for_frame(frame_bgr, v_threshold, banana_mask)
+    out = {}
+    for name, region in static_masks.items():
+        ranges = BOWL_GEOMETRY_HSV_RANGES.get(name, HSV_RANGES.get(name))
+        if ranges is None:
+            out[name] = region & ~protected
+            continue
+        seed = color_gate_mask(hsv, ranges).astype(bool) & region & ~protected
+        min_seed = max(25, int(region.sum() * 0.02))
+        if int(seed.sum()) < min_seed:
+            out[name] = seed
+        else:
+            m = seed.astype(np.uint8) * 255
+            m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((21, 21), np.uint8))
+            m = cv2.dilate(m, np.ones((3, 3), np.uint8))
+            out[name] = m.astype(bool) & region & ~protected
     return out
 
 
@@ -354,12 +517,7 @@ def color_masks_for_frame(frame_bgr, dilate_kernel, sat_boost=1.0):
     saturation-boosted copy of the frame so highlight gradients on shiny
     bowls get captured. The boosted copy is used only for mask computation;
     the original frame is recolored unchanged elsewhere."""
-    if sat_boost > 1.0:
-        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV).astype(np.int16)
-        hsv[..., 1] = np.clip(hsv[..., 1] * sat_boost, 0, 255)
-        hsv = hsv.astype(np.uint8)
-    else:
-        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+    hsv = hsv_for_masks(frame_bgr, sat_boost)
     out = {}
     for name, ranges in HSV_RANGES.items():
         m = color_mask(hsv, ranges)
@@ -414,6 +572,41 @@ def apply_swap(frame, masks, swap, means):
                                np.clip(hsv[..., 1] + s_shift, 0, 255),
                                out[..., 1])
     return cv2.cvtColor(out.astype(np.uint8), cv2.COLOR_HSV2BGR)
+
+
+def sample_photo_aug(args, label):
+    if not args.photo_aug:
+        return None
+    seed = args.photo_seed + sum(ord(c) for c in label)
+    rng = np.random.default_rng(seed)
+    return {
+        "brightness": float(rng.uniform(-args.brightness_jitter, args.brightness_jitter)),
+        "contrast": float(rng.uniform(1.0 - args.contrast_jitter, 1.0 + args.contrast_jitter)),
+        "saturation": float(rng.uniform(1.0 - args.saturation_jitter, 1.0 + args.saturation_jitter)),
+        "hue": int(rng.integers(-args.hue_jitter, args.hue_jitter + 1)) if args.hue_jitter else 0,
+        "noise_std": float(args.noise_std),
+        "rng": rng,
+    }
+
+
+def apply_photo_aug(frame_bgr, aug, preserve_mask=None, preserve_source=None):
+    if aug is None:
+        return frame_bgr
+    out = frame_bgr.astype(np.float32)
+    out = (out - 127.5) * aug["contrast"] + 127.5 + 255.0 * aug["brightness"]
+    out = np.clip(out, 0, 255).astype(np.uint8)
+    if aug["saturation"] != 1.0 or aug["hue"]:
+        hsv = cv2.cvtColor(out, cv2.COLOR_BGR2HSV).astype(np.int16)
+        hsv[..., 0] = (hsv[..., 0] + aug["hue"]) % 180
+        hsv[..., 1] = np.clip(hsv[..., 1].astype(np.float32) * aug["saturation"], 0, 255).astype(np.int16)
+        out = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    if aug["noise_std"] > 0:
+        noise = aug["rng"].normal(0.0, 255.0 * aug["noise_std"], size=out.shape).astype(np.float32)
+        out = np.clip(out.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+    if preserve_mask is not None and preserve_mask.any():
+        source = frame_bgr if preserve_source is None else preserve_source
+        out[preserve_mask] = source[preserve_mask]
+    return out
 
 
 # ---------- swap plan ----------
@@ -494,8 +687,14 @@ def run(args, plan):
                 args.video, start_frame, n_to_process, exclude_prompts, args.sam3_model)
             exclude_hsv = {}                       # tracker supersedes HSV signature
 
-        def masks_fn(frame, frame_offset):
-            m = apply_arm_exclusion(frame, static_masks, args.arm_v)
+        def masks_fn(frame, frame_offset, banana_mask=None):
+            m = filter_static_masks(
+                frame,
+                static_masks,
+                args.arm_v,
+                args.sat_boost,
+                banana_mask=banana_mask,
+            )
             exc = None
             if tracked_occluder_per_frame is not None and frame_offset < len(tracked_occluder_per_frame):
                 exc = tracked_occluder_per_frame[frame_offset]
@@ -529,9 +728,14 @@ def run(args, plan):
     snap_idx = int(round(args.snapshot_time * fps)) if args.snapshot_time is not None else None
     writers = []
     for label, swap, out_path in plan:
+        photo_aug = sample_photo_aug(args, label)
+        if photo_aug is not None:
+            shown = {k: v for k, v in photo_aug.items() if k != "rng"}
+            print(f"  photo aug {label}: {shown}")
         writers.append((label, swap, out_path,
                         cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*"mp4v"),
-                                        fps, (w, h))))
+                                        fps, (w, h)),
+                        photo_aug))
 
     i = 0
     pbar = tqdm(desc=f"swapping x{len(writers)}", total=n_to_process)
@@ -539,9 +743,18 @@ def run(args, plan):
         ok, frame = cap.read()
         if not ok:
             break
-        masks = masks_fn(frame, i)
-        for _label, swap, out_path, writer in writers:
+        banana_mask = banana_mask_for_frame(frame, dilation=3) if args.protect_banana else None
+        masks = masks_fn(frame, i, banana_mask=banana_mask)
+        if banana_mask is not None and banana_mask.any():
+            masks = {name: m & ~banana_mask for name, m in masks.items()}
+        for _label, swap, out_path, writer, photo_aug in writers:
             swapped = apply_swap(frame, masks, swap, means)
+            swapped = apply_photo_aug(
+                swapped,
+                photo_aug,
+                preserve_mask=banana_mask,
+                preserve_source=stabilize_banana_color(frame, banana_mask),
+            )
             writer.write(swapped)
             if snap_idx is not None and i == snap_idx:
                 cv2.imwrite(str(Path(out_path).with_suffix(".png")), swapped)
@@ -549,7 +762,7 @@ def run(args, plan):
         pbar.update(1)
     pbar.close()
     cap.release()
-    for _label, _swap, out_path, writer in writers:
+    for _label, _swap, out_path, writer, _photo_aug in writers:
         writer.release()
         print(f"wrote {i} frames to {out_path}")
 
@@ -621,6 +834,28 @@ def main():
                     help="Use SAM3 video tracker to get a per-frame mask for "
                          "each --exclude prompt (more precise than the HSV "
                          "signature, but adds a slow pre-pass).")
+    ap.add_argument("--photo-aug", action="store_true",
+                    help="Apply one clip-coherent photometric jitter per "
+                         "output video after color swapping.")
+    ap.add_argument("--photo-seed", type=int, default=0,
+                    help="Seed for clip-level photometric augmentation.")
+    ap.add_argument("--brightness-jitter", type=float, default=0.08,
+                    help="Brightness offset sampled from +/- this fraction "
+                         "of 255 when --photo-aug is set.")
+    ap.add_argument("--contrast-jitter", type=float, default=0.10,
+                    help="Contrast factor sampled from 1 +/- this value.")
+    ap.add_argument("--saturation-jitter", type=float, default=0.10,
+                    help="Saturation factor sampled from 1 +/- this value.")
+    ap.add_argument("--hue-jitter", type=int, default=0,
+                    help="HSV hue-bin shift sampled from +/- this integer.")
+    ap.add_argument("--noise-std", type=float, default=0.0,
+                    help="Per-pixel Gaussian sensor noise std as a fraction "
+                         "of 255 when --photo-aug is set.")
+    ap.add_argument("--protect-banana", dest="protect_banana", action="store_true",
+                    default=True,
+                    help="Keep yellow banana pixels unchanged by color swap "
+                         "and photometric augmentation.")
+    ap.add_argument("--no-protect-banana", dest="protect_banana", action="store_false")
     args = ap.parse_args()
     if args.snapshot_time is not None and args.snapshot_time < 0:
         args.snapshot_time = None
