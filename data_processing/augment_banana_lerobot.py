@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Build ACT-ready LeRobot datasets for the banana bowl runs.
-
-The default output is position-conditioned: for each original episode it
-creates three color renderings where the target-position bowl is blue, red,
-and green. The language names the target position, not the target color.
-"""
+"""Build ACT-ready LeRobot datasets for the banana bowl runs."""
 
 from __future__ import annotations
 
@@ -38,25 +33,23 @@ from data_processing.bowl_color_swap import (
 
 IMAGE_KEY = "observation.images.front"
 SOURCE_REPOS = ("rslxcvg/banana_blue", "rslxcvg/banana_red1", "rslxcvg/banana_green")
+POSITIONS = ("left", "center", "right")
+ORIGINAL_COLORS_BY_POSITION = ("blue", "red", "green")
+PROMPT_BUCKETS = ("direct_color", "position_ordinal", "relative_color", "exclusion")
 TARGET_BY_REPO = {
     "rslxcvg/banana_blue": "blue",
     "rslxcvg/banana_red1": "red",
     "rslxcvg/banana_green": "green",
 }
+TARGET_POSITION_BY_REPO_TARGET = {
+    "blue": "left",
+    "red": "center",
+    "green": "right",
+}
 DISTRACTOR_SWAP_BY_TARGET = {
     "blue": {"red": "green", "green": "red"},
     "red": {"green": "blue", "blue": "green"},
     "green": {"red": "blue", "blue": "red"},
-}
-TASK_BY_TARGET = {
-    "blue": "put the banana in the blue bowl on the left",
-    "red": "put the banana in the red bowl in the center",
-    "green": "put the banana in the green bowl on the right",
-}
-POSITION_TASK_BY_TARGET = {
-    "blue": "put the banana in the left bowl",
-    "red": "put the banana in the center bowl",
-    "green": "put the banana in the right bowl",
 }
 
 
@@ -69,8 +62,20 @@ def parse_args() -> argparse.Namespace:
         default="position_target_colors",
         help=(
             "position_target_colors creates three renderings per episode, "
-            "with position-only task text. labelsafe_colorpos keeps the "
-            "target color fixed and swaps only distractors."
+            "making the demonstrated target-position bowl red, green, and blue. "
+            "labelsafe_colorpos keeps the target color fixed and swaps only "
+            "distractors."
+        ),
+    )
+    parser.add_argument(
+        "--prompt-mode",
+        choices=("position", "eval_sampled", "eval_mixed", "all_eval"),
+        default="eval_mixed",
+        help=(
+            "position keeps one legacy position-only prompt per rendering. "
+            "eval_sampled uses one deterministic prompt from the eval buckets. "
+            "eval_mixed duplicates each rendering once per eval bucket. "
+            "all_eval duplicates for every template."
         ),
     )
     parser.add_argument("--root", default=None)
@@ -116,23 +121,137 @@ def sample_photo_aug(seed: int, label: str) -> dict:
     }
 
 
+def stable_index(label: str, n: int) -> int:
+    if n <= 0:
+        raise ValueError("stable_index needs a positive length")
+    return sum(ord(c) for c in label) % n
+
+
 def swap_to_make_target_color(target: str, desired_color: str) -> dict[str, str] | None:
     if target == desired_color:
         return None
     return {target: desired_color, desired_color: target}
 
 
-def episode_variants(target: str, mode: str) -> list[tuple[str, dict[str, str] | None, str]]:
-    if mode == "labelsafe_colorpos":
+def colors_by_position_for_swap(swap: dict[str, str] | None) -> tuple[str, str, str]:
+    swap = swap or {}
+    return tuple(swap.get(color, color) for color in ORIGINAL_COLORS_BY_POSITION)
+
+
+def rendered_target_position(target: str) -> str:
+    return TARGET_POSITION_BY_REPO_TARGET[target]
+
+
+def prompt_buckets_for_rendering(
+    colors_by_position: tuple[str, str, str],
+    target_position: str,
+) -> dict[str, list[str]]:
+    target_idx = POSITIONS.index(target_position)
+    target_color = colors_by_position[target_idx]
+    other_colors = [color for color in COLORS if color != target_color]
+
+    direct_color = [
+        f"Put the banana in the {target_color} colored bowl.",
+        f"Put the banana in the {target_color} bowl.",
+        f"Place the banana in the {target_color} bowl.",
+        f"Move the banana to the {target_color} colored bowl.",
+    ]
+
+    position_ordinal = [
+        f"Put the banana into the {target_position} bowl from the robot perspective.",
+    ]
+    if target_position == "left":
+        position_ordinal.extend([
+            "Put the banana into the 1st bowl from the left from the robot perspective.",
+            "Put the banana into the leftmost bowl from the robot perspective.",
+        ])
+    elif target_position == "center":
+        position_ordinal.extend([
+            "Put the banana into the 2nd bowl from the left from the robot perspective.",
+            "Put the banana into the middle bowl from the robot perspective.",
+        ])
+    elif target_position == "right":
+        position_ordinal.extend([
+            "Put the banana into the 3rd bowl from the left from the robot perspective.",
+            "Put the banana into the rightmost bowl from the robot perspective.",
+        ])
+
+    relative_color = []
+    if target_idx > 0:
+        ref_color = colors_by_position[target_idx - 1]
+        relative_color.append(
+            f"Put the banana into the bowl on the right of the {ref_color} bowl "
+            "from the robot perspective."
+        )
+    if target_idx < len(POSITIONS) - 1:
+        ref_color = colors_by_position[target_idx + 1]
+        relative_color.append(
+            f"Put the banana into the bowl on the left of the {ref_color} bowl "
+            "from the robot perspective."
+        )
+    if target_position == "center":
+        left_color = colors_by_position[0]
+        right_color = colors_by_position[2]
+        relative_color.append(
+            f"Put the banana into the bowl between the {left_color} bowl and the "
+            f"{right_color} bowl."
+        )
+
+    exclusion = [
+        f"Put the banana into the bowl that is not {other_colors[0]} and not {other_colors[1]}."
+    ]
+
+    return {
+        "direct_color": direct_color,
+        "position_ordinal": position_ordinal,
+        "relative_color": relative_color,
+        "exclusion": exclusion,
+    }
+
+
+def prompts_for_rendering(
+    colors_by_position: tuple[str, str, str],
+    target_position: str,
+    prompt_mode: str,
+    label: str,
+) -> list[tuple[str, str]]:
+    if prompt_mode == "position":
+        return [("position", f"put the banana in the {target_position} bowl")]
+
+    buckets = prompt_buckets_for_rendering(colors_by_position, target_position)
+    if prompt_mode == "all_eval":
         return [
-            ("orig", None, TASK_BY_TARGET[target]),
-            ("distractors", DISTRACTOR_SWAP_BY_TARGET[target], TASK_BY_TARGET[target]),
+            (bucket, prompt)
+            for bucket in PROMPT_BUCKETS
+            for prompt in buckets[bucket]
+        ]
+    if prompt_mode == "eval_mixed":
+        return [
+            (bucket, buckets[bucket][stable_index(f"{label}:{bucket}", len(buckets[bucket]))])
+            for bucket in PROMPT_BUCKETS
+        ]
+    if prompt_mode == "eval_sampled":
+        bucket = PROMPT_BUCKETS[stable_index(label, len(PROMPT_BUCKETS))]
+        prompt = buckets[bucket][stable_index(f"{label}:{bucket}", len(buckets[bucket]))]
+        return [(bucket, prompt)]
+    raise ValueError(f"unknown prompt mode: {prompt_mode}")
+
+
+def episode_variants(
+    target: str,
+    mode: str,
+) -> list[tuple[str, dict[str, str] | None, tuple[str, str, str]]]:
+    if mode == "labelsafe_colorpos":
+        distractor_swap = DISTRACTOR_SWAP_BY_TARGET[target]
+        return [
+            ("orig", None, colors_by_position_for_swap(None)),
+            ("distractors", distractor_swap, colors_by_position_for_swap(distractor_swap)),
         ]
     return [
         (
             f"target_{desired_color}",
             swap_to_make_target_color(target, desired_color),
-            POSITION_TASK_BY_TARGET[target],
+            colors_by_position_for_swap(swap_to_make_target_color(target, desired_color)),
         )
         for desired_color in COLORS
     ]
@@ -252,9 +371,18 @@ def main() -> None:
                 start = int(meta["dataset_from_index"])
                 end = int(meta["dataset_to_index"])
                 stem = repo_id.split("/")[-1]
-                for variant, swap, task in episode_variants(target, args.mode):
+                target_position = rendered_target_position(target)
+                for variant, swap, colors_by_position in episode_variants(target, args.mode):
                     label = f"{stem}_ep{ep:03d}_{variant}"
-                    add_episode(out, src, start, end, swap, label, task, args)
+                    task_prompts = prompts_for_rendering(
+                        colors_by_position,
+                        target_position,
+                        args.prompt_mode,
+                        label,
+                    )
+                    for prompt_idx, (prompt_bucket, task) in enumerate(task_prompts):
+                        prompt_label = f"{label}_{prompt_bucket}_{prompt_idx:02d}"
+                        add_episode(out, src, start, end, swap, prompt_label, task, args)
     finally:
         out.finalize()
 
