@@ -1,0 +1,15 @@
+--dataset.repo_id=carmensc/record-test-screwdriver
+--dataset.revision=main
+--dataset.video_backend=torchcodec
+--policy.path=lerobot/smolvla_base
+--policy.device=cuda
+--policy.push_to_hub=false
+--rename_map={"observation.images.front":"observation.images.camera1"}
+--wandb.enable=false
+--output_dir=outputs/train/smolvla_screwdriver_smoke
+--job_name=smolvla_screwdriver_smoke
+--steps=5
+--save_freq=5
+--log_freq=1
+--num_workers=2
+--batch_size=2
